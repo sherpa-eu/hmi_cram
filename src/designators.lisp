@@ -27,3 +27,68 @@
 ;;; POSSIBILITY OF SUCH DAMAGE.
 
 (in-package :hmi-cram)
+
+(defun create-desig-based-on-hmi-call (desigs)
+  (let ((action-list '()))
+    (loop for index being the elements of desigs
+	  do(let ((property-list NIL)
+		  (loc_desig NIL)
+		  (action (std_msgs-msg:data
+                           (hmi_interpreter-msg:action_type index)))
+		  (actor (std_msgs-msg:data
+			  (hmi_interpreter-msg:actor index)))
+		  (operator (std_msgs-msg:data
+			     (hmi_interpreter-msg:instructor index)))
+		  (viewpoint (std_msgs-msg:data
+                              (hmi_interpreter-msg:viewpoint index)))
+		  (propkeys (hmi_interpreter-msg:propkeys index)))
+	      (loop for jndex being the elements of propkeys
+		    do(let((pose NIL)
+			   (obj NIL)
+			   (spatial
+                             (std_msgs-msg:data
+                              (hmi_interpreter-msg::object_relation jndex)))
+			    (object
+                               (std_msgs-msg:data
+                              (hmi_interpreter-msg::object jndex)))
+			   (color
+                               (std_msgs-msg:data
+                              (hmi_interpreter-msg::object_color jndex)))
+                           (size
+                             (std_msgs-msg:data
+                              (hmi_interpreter-msg::object_size jndex)))
+			   (num
+                             (std_msgs-msg:data
+                              (hmi_interpreter-msg::object_num jndex)))
+			   (flag
+                             (std_msgs-msg:data
+                              (hmi_interpreter-msg::flag jndex))))
+			(if (and (string-equal spatial "null")
+               (not (string-equal "null" object)))
+			    (setf spatial "ontop"))
+			(cond((string-equal "true" flag)
+            (format t "flag> ~a~%" flag)
+			      (setf pose (cl-transforms:make-3d-vector
+					  (geometry_msgs-msg:x
+					   (hmi_interpreter-msg:pointing_gesture jndex))
+					  (geometry_msgs-msg:y
+					   (hmi_interpreter-msg:pointing_gesture jndex))
+					  (geometry_msgs-msg:z
+					   (hmi_interpreter-msg:pointing_gesture jndex))))
+			      (setf obj (give-pointed-obj-based-on-language object pose)))
+                             (t (setf obj NIL)))
+                        (if (null obj)
+                            (setf obj object))
+                        (setf property-list (append (list  (list (list (direction-symbol spatial) obj)
+                                                                 (list :color color)
+                                                                 (list :size size)
+                                                                 (list :num num))) property-list))))
+        (format t "property-list: ~a~%" (reverse property-list)) 
+	      (setf loc_desig (make-designator :location (reverse property-list)))
+	      (setf action-list (append action-list (list (make-designator :action `((:type ,action)
+										     (:actor ,actor)
+										     (:operator ,operator)
+										     (:viewpoint ,viewpoint)
+										     (:goal ,loc_desig))))))))
+    action-list))
+			

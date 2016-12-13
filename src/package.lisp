@@ -35,7 +35,8 @@
           #:cram-prolog
           #:btr
           #:cram-utilities
-	  #:cram-bullet-reasoning
+          #:cram-bullet-reasoning
           #:cram-bullet-reasoning-belief-state
 	  #:cram-language-implementation)
-  (:export))
+    (:shadowing-import-from #:btr object pose object-pose width height name)
+    (:shadowing-import-from #:cpl-impl #:fail))

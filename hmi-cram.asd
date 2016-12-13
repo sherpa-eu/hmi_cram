@@ -20,27 +20,38 @@
 ;;; ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
 ;;; LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
 ;;; CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-;;; SUBSTITUTE GOODS OR SERVICES; LOSS OF U
+;;; SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+;;; INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+;;; CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+;;; ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+;;; POSSIBILITY OF SUCH DAMAGE.
 
-(in-package :hmi-cram)
+(defsystem hmi-cram
+  :author "yazdani"
+  :license "BSD"
+  :depends-on (cram-designators
+               cram-location-costmap
+               cram-prolog
+               roslisp
+               cram-semantic-map-costmap
+               cram-bullet-reasoning
+               cram-bullet-reasoning-belief-state
+               cram-plan-library
+               cram-bullet-reasoning-designators
+               cram-beliefstate
+               cl-tf
+               cram-semantic-map-designators
+               hmi_interpreter-msg
+               hmi_interpreter-srv
+               gazebo_msgs-srv
+               alexandria)
+  :components
+  ((:module "src"
+    :components
+    ((:file "package")
+     (:file "hmi-cram" :depends-on ("package" "designators" "gesture-calculation" "auxiliary"))
+     (:file "auxiliary" :depends-on ("package"))
+     (:file "gesture-calculation" :depends-on ("package"))
+     (:file "designators" :depends-on ("package" "gesture-calculation"))
 
-(defvar *sem-map* NIL)
-
-;; ROSSERVICE FOR CALLING HMI-CRAM
-(defun hmi-cram ()
-  (hmi-cram-call))
-
-(defun hmi-cram-call ()
-  (roslisp-utilities:startup-ros :name "hmi_cram_service")
-  (roslisp:register-service "service_hmi_cram" 'hmi_interpreter-srv:HMIDesig)
-  (roslisp:ros-info (basics-system) "start hmi_cram_service")
-  (roslisp:spin-until nil 1000))
-
-(roslisp:def-service-callback hmi_interpreter-srv::HMIDesig (desigs)
-  (setf *sem-map* (sem-map-utils:get-semantic-map))
- (let ((id  (beliefstate:start-node "INTERPRET-INSTRUCTION-DESIGNATOR" NIL 2))
-       (newliste '())
-       (create_desig (create-desig-based-on-hmi-call desigs)))
-   (format t "desigs: ~a~%" desigs)
-   (format t "create-desig: ~a~%" create_desig)
-(roslisp:make-response :result "Done!")))
+))))
