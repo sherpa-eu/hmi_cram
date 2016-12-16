@@ -28,40 +28,11 @@
 
 (in-package :hmi-cram)
 
-(defun get-elem-by-type (name)
- (let*((type NIL)
-       (sem-hash (slot-value *sem-map* 'sem-map-utils:parts))
-       (new-hash (copy-hash-table sem-hash))
-       (sem-keys (hash-table-keys sem-hash)))
-       (dotimes(i (length sem-keys))
-         (if(string-equal name (nth i sem-keys))
-            (cond ((search "tree" (slot-value (gethash name new-hash)
-                                                        'cram-semantic-map-utils::type))
-                   (setf type "tree"))
-                  ((search "rock" (slot-value (gethash name new-hash)
-                                                        'cram-semantic-map-utils::type))
-                   (setf type "rock"))
-                  ((search "pylon" (slot-value (gethash name new-hash)
-                                                        'cram-semantic-map-utils::type))
-                   (setf type "pylon"))
-                  ((search "house" (slot-value (gethash name new-hash)
-                                                        'cram-semantic-map-utils::type))
-                   (setf type "house"))
-                  (t (setf type (slot-value (gethash name new-hash)
-                                                        'cram-semantic-map-utils::type))))))
-   type))
-
-(defun get-elem-by-bboxsize (objname)
-   (let*((sem-hash (slot-value *sem-map* 'sem-map-utils:parts))
-         (new-hash (copy-hash-table sem-hash))
-         (dim (slot-value (gethash objname new-hash) 'sem-map-utils:dimensions))
-         (dim-x (cl-transforms:x dim))
-         (dim-y (cl-transforms:y dim))
-         (dim-z (cl-transforms:z dim)))
-     ;;(format t "size ~a~%"  (+ dim-x dim-y dim-z))
-   (+ dim-x dim-y dim-z)))
-
-(defun get-elem-by-pose (objname)
+;;
+;; Get the position of the element out of semantic map
+;; @objname: object name of the element
+;;
+(defun get-pose-by-elem (objname)
  (let*((pose NIL)
        (sem-hash (slot-value *sem-map* 'sem-map-utils:parts))
        (new-hash (copy-hash-table sem-hash))
@@ -72,123 +43,27 @@
                (format t "")))
    pose))
 
-(defun direction-symbol (sym)
-  (intern (string-upcase sym) "KEYWORD"))
-
-;;;
-;;; 
-;;;
-(defun get-next-elem-depend-on-prev-elem (typ spatial name)
-  (format t "typ ~a~% spatial ~a~% name ~a~%" typ spatial name)
-  (let*((liste (get-elems-of-semmap-by-type typ))
-        (resultlist '())
-        (result NIL))
-   (format t "liste ~a~%" liste)
-    (format t "typ ~a~% spatial ~a~% name ~a~%" typ spatial name)
-   (dotimes (index (length liste))
-       (format t "hieer ~%")
-     (if (and (not (null (checker-elems-by-relation->get-elems-by-tf
-                   (nth index liste) name spatial)))
-              (> 5 (get-distance (get-elem-by-pose name) (get-elem-by-pose (nth index liste)))))
-         (setf resultlist (append resultlist (list 
-                                                   (format NIL "~a:~a"(nth index liste)
-                                                           (get-distance
-                                                            (get-elem-by-pose
-                                                             (nth index liste))
-                                                            (get-elem-by-pose name))))))))
-    (format t "resultlist ~a~%" resultlist)
-    (if (null resultlist)
-        (setf result NIL)
-        (setf result  (sort-list resultlist)))
-    ;;(format t "elem result ~a~%" result)
-    result))
-
-(defun get-next-elem-depend-on-prev-elem-no-con (typ spatial name)
- ;; (format t "typ ~a~% spatial ~a~% name ~a~%" typ spatial name)
-  (let*((liste (get-elems-of-semmap-by-type typ))
-        (resultlist '())
-        (result NIL))
-   ;; (format t "liste ~a~%" liste)
-   ;; (format t "typ ~a~% spatial ~a~% name ~a~%" typ spatial name)
-   (dotimes (index (length liste))
-       
-     (if (not (null (checker-elems-by-relation->get-elems-by-tf
-                   (nth index liste) name spatial)))
-         (setf resultlist (append resultlist (list 
-                                              (format NIL "~a:~a"(nth index liste)
-                                                      (get-distance
-                                                       (get-elem-by-pose
-                                                        (nth index liste))
-                                                       (get-elem-by-pose name))))))))
-    (setf result (sort-list resultlist))
-    (format t "elem result ~a~%" result)
-    result))
-
-(defun get-prev-elem-depend-on-next-elem-no-con (typ spatial name)
- ;; (format t "typ ~a~% spatial ~a~% name ~a~%" typ spatial name)
-  (let*((liste (get-elems-of-semmap-by-type typ))
-        (resultlist '())
-        (result NIL))
-   (dotimes (index (length liste))
-     (if (not (null (checker-elems-by-relation->get-elems-by-tf
-                    name (nth index liste) spatial)))
-         (setf resultlist (append resultlist (list 
-                                              (format NIL "~a:~a"(nth index liste)
-                                                      (get-distance
-                                                       (get-elem-by-pose
-                                                        (nth index liste))
-                                                       (get-elem-by-pose name))))))))
-    (setf result (sort-list resultlist))
-    (format t "elem result ~a~%" result)
-    result))
-
-(defun get-prev-elem-depend-on-next-elem (typ spatial name)
-  (format t "get-next-elem ~a~%"name)
- (let*((liste (get-elems-of-semmap-by-type typ))
-       (resultlist '()))
-   (dotimes (index (length liste))
-     (format t "get-next-elem ~a~%" (nth index liste))
-        (if  (and (not (null (checker-elems-by-relation->get-elems-by-tf
-                   name (nth index liste) spatial)))
-                  (> 5 (get-distance (get-elem-by-pose name) (get-elem-by-pose (nth index liste)))))
-         (setf resultlist (append resultlist (list 
-                                                   (format NIL "~a:~a"(nth index liste)
-                                                           (get-distance
-                                                            (get-elem-by-pose
-                                                             (nth index liste))
-                                                            (get-elem-by-pose name))))))))
-   (format t "neue luste ~a~%" resultlist)
-   (first (split-sequence:split-sequence #\: (first (sort-list resultlist))))))
-
-(defun get-elems-of-semmap-by-type (type)
-  (format t "get-elems-of-semmap-by-type ~a~%" type)
-  (let*((sem-hash (slot-value *sem-map* 'sem-map-utils:parts))
-       (sem-keys (hash-table-keys sem-hash))
-       (types '()))
-    (dotimes (index (length sem-keys))
-      (if (string-equal type (get-elem-by-type (nth index sem-keys)))
-          (setf types (append types
-                               (list (nth index sem-keys))))))
-    (format t "ttype ~a~%" types)
-    types))
-
-(defun get-elem-by-type->get-elems-by-type (type)
-;;  (format t "get-elem-by-type->get-elems-by-type ~a~%" type)
- (first (split-sequence:split-sequence #\: (first (get-elems-by-type (get-elems-agent-front-by-dist) type)))))
-
-(defun get-elem-by-bboxsize->get-elems-agent-front-by-dist (objtype shape)
+;;
+;; Get the bounding box size of an element that is in front of the agent
+;; Calculating all objects in front of the agent, checking the type and
+;; picking out the object by name and computing the bounding box
+;; @objtype: object type of the calculated object
+;; @shape: shape of the calculated object e.g. big or small
+;;
+(defun get-bboxsize-by-elem->get-elems-agent-front-by-dist (objtype shape)
  (let*((liste (get-elems-agent-front-by-dist))
        (objtypliste '())
        (objdistliste '())
        (result NIL))
      (dotimes (index (length liste))
-       (cond((string-equal objtype
-                           (get-elem-by-type (first (split-sequence:split-sequence #\: (nth index liste)))))
+       (cond((string-equal
+              objtype
+              (get-elem-by-type (first (split-sequence:split-sequence #\: (nth index liste)))))
              (setf objtypliste (append objtypliste (list (nth index liste))))
              (cond ((> 3 (length objdistliste))
                     (format t "index ~a~%"  (nth index liste))
                      (setf objdistliste (append objdistliste
-                                               (list (get-elem-by-bboxsize (first (split-sequence:split-sequence #\: (nth index liste))))))))))))
+                                               (list (get-bboxsize-by-elem (first (split-sequence:split-sequence #\: (nth index liste))))))))))))
    (if(string-equal "small" shape)
        (if (> (first objdistliste)
               (second objdistliste))
@@ -200,13 +75,11 @@
               (setf result (first (split-sequence:split-sequence #\: (second objtypliste))))))
    result))
 
-(defun get-elems-by-type (liste type)
-  (let((types '()))
-       (dotimes (index (length liste))
-         (if(string-equal type (get-elem-by-type (first (split-sequence:split-sequence #\: (nth index liste)))))
-         (setf types (cons (nth index liste) types))))
-       (reverse types)))
-           
+;;
+;; Get the specific element by range "first", "second", "third"
+;; @type: the type of the element
+;; @range; the range of the element
+;;
  (defun get-elem-by-range->get-elems-by-type (type range)
    (let* ((types (get-elems-agent-front-by-type  type))
           (result NIL))
@@ -218,98 +91,132 @@
            ((string-equal "three" range)
             (setf result (first (split-sequence:split-sequence #\: (third types)))))))
      result))
+;;
+;; Get elements in front of the agent by specific type
+;; @type: type of the object
+;;
+(defun get-elems-agent-front-by-type (type)
+  (let*((liste (get-elems-agent-front-by-dist))
+        (resultlist '()))
+    (dotimes (index (length liste))
+      (if(string-equal type
+                       (get-elem-by-type
+                        (first (split-sequence:split-sequence #\: (nth index liste)))))
+         (setf resultlist (append resultlist (list (first (split-sequence:split-sequence #\: (nth index liste))))))))
+    resultlist))
 
-(defun tf-human-to-map ()
-  (let ((var (cl-transforms:transform->pose (cl-tf:lookup-transform *tf* "map" "human"))))
-    (publish-body var)
-    var))
+;;
+;; Get next element based on previous element without
+;; any conditions
+;; @typ: element type
+;; @spatial: spatial relation of the elements
+;; @name: element name
+;;
+(defun get-next-elem-depend-on-prev-elem-no-con (typ spatial name)
+  (let*((liste (get-elems-of-semmap-by-type typ))
+        (resultlist '())
+        (result NIL))
+    (dotimes (index (length liste))
+      (if (not (null (checker-elems-by-relation->get-elems-by-tf
+                      (nth index liste) name spatial)))
+          (setf resultlist (append resultlist (list 
+                                               (format NIL "~a:~a"(nth index liste)
+                                                       (get-distance
+                                                        (get-elem-by-pose
+                                                         (nth index liste))
+                                                        (get-elem-by-pose name))))))))
+    (setf result (sort-list resultlist))
+    result))
 
- (defun sort-list (liste)
+
+;;
+;; Getting the first element based on "name", "type", "shape"
+;; "spatial relation"
+;; @name: current object name
+;; @type: specific object type
+;; @shape: object shape
+;; @spatial: relation of the object
+;;
+(defun get-first-elem-by-name-type-shape-spatial (name type shape spatial)
+  (let ((liste (get-elems-agent-front-by-type type))
+        (resultlist '())
+        (result NIL)
+        (tmplist NIL))
+    (format t "liste ~a~%" liste)
+    (dotimes (index (length liste))
+      (if (not (null (checker-elems-by-relation->get-elems-by-tf
+                      name (nth index liste) spatial)))
+          (setf resultlist (append resultlist (list 
+                                                   (format NIL "~a:~a"(nth index liste)
+                                                           (get-distance
+                                                            (get-elem-by-pose
+                                                             (nth index liste))
+                                                            (get-elem-by-pose name))))))))
+    (setf resultlist (sort-list resultlist))
+    (dotimes (jndex (length resultlist))
+        (format t "tmplist1 ~a~%" tmplist)
+      (setf tmplist (append tmplist (list (get-elem-by-bboxsize
+                             (first (split-sequence:split-sequence #\: (nth jndex resultlist))))))))
+    (if(string-equal "big" shape)
+       (cond((> (first tmplist) (second tmplist))
+             (setf result (first resultlist)))
+            ((< (first tmplist) (second tmplist))
+             (setf result (second resultlist)))
+            (t (if(> (second tmplist) (third tmplist))
+                  (setf result (second resultlist))
+                  (setf result (third resultlist)))))
+       (cond((< (first tmplist) (second tmplist))
+             (setf result (first resultlist)))
+            ((> (first tmplist) (second tmplist))
+             (setf result (second resultlist)))
+            (t (if(< (second tmplist) (third tmplist))
+                  (setf result (second resultlist))
+                  (setf result (third resultlist))))))
+    result))
+
+;;
+;; Get previous element depending on next element
+;; without any conditions
+;; @typ: element type
+;; @spatial: spatial relation of the element
+;; @name: element name
+;;
+(defun get-prev-elem-depend-on-next-elem-no-con (typ spatial name)
+  (let*((liste (get-elems-of-semmap-by-type typ))
+        (resultlist '())
+        (result NIL))
+    (dotimes (index (length liste))
+      (if (not (null (checker-elems-by-relation->get-elems-by-tf
+                      name (nth index liste) spatial)))
+         (setf resultlist (append resultlist (list 
+                                              (format NIL "~a:~a"(nth index liste)
+                                                      (get-distance
+                                                       (get-elem-by-pose
+                                                        (nth index liste))
+                                                       (get-elem-by-pose name))))))))
+    (setf result (sort-list resultlist))
+    result))
+
+
+;;
+;; Getting next element depending on previous element
+;; @typ: object type
+;; @spatial: spatial relation
+;; @name: object name
+;;
+(defun get-next-elem-depend-on-prev-elem (typ spatial name)
+  (let*((liste (get-elems-of-semmap-by-type typ))
+        (resultlist '())
+        (result NIL))
    (dotimes (index (length liste))
-                     (setf liste (sorted-lists liste)))
-                   liste)
-
-
-(defun sorted-lists (liste)
-  (let ((sortlist '())
-        (tmp  (first liste)))
-    (loop for index from 1 to (- (length liste) 1)
-          do
-            (let((tmpnum (read-from-string
-                          (second (split-sequence:split-sequence #\: tmp))))
-                 (num (read-from-string
-                            (second (split-sequence:split-sequence #\: (nth index liste)))))
-                 (value (nth index liste)))
-             (cond ((> tmpnum  num)
-                    (setf sortlist (cons value sortlist)))
-                   (t
-                    (setf sortlist (cons tmp sortlist))
-                    (setf tmp value)
-                    (setf tmpnum (read-from-string
-                                  (second (split-sequence:split-sequence #\: tmp))))))))
-    (setf sortlist (cons tmp sortlist))
-    (reverse sortlist)))
-
-
-(defun checker-elems-by-relation->get-elems-by-tf (objname1 objname2 property)
-  (let*((sem-hash (get-elems-by-tf))
-        (obj1-pose (gethash objname1 sem-hash))
-        (obj2-pose (gethash objname2 sem-hash))
-        (tmp NIL))
-    (cond ((string-equal property "behind")
-         (setf tmp (and (> (cl-transforms:x (cl-transforms:origin obj1-pose))
-                       (cl-transforms:x (cl-transforms:origin obj2-pose)))
-                        (plusp (cl-transforms:x (cl-transforms:origin obj1-pose))))))
-          ((string-equal property "in-front-of")
-         (setf tmp (and (< (cl-transforms:x (cl-transforms:origin obj1-pose))
-                           (cl-transforms:x (cl-transforms:origin obj2-pose)))
-                        (plusp (cl-transforms:x (cl-transforms:origin obj2-pose))))))
-        ((string-equal property "right")
-         (setf tmp (< (cl-transforms:y (cl-transforms:origin obj1-pose))
-                      (cl-transforms:y (cl-transforms:origin obj2-pose)))))
-        ((string-equal property "left")
-         (setf tmp (> (cl-transforms:y (cl-transforms:origin obj1-pose))
-                      (cl-transforms:y (cl-transforms:origin obj2-pose)))))
-        ((string-equal property "close-to")
-         (if (>= 4 (get-distance obj1-pose obj2-pose))
-             (setf tmp T)
-             (setf tmp NIL)))
-        ((or (string-equal property "to")
-              (string-equal property "around")
-              (string-equal property "next"))
-         (if (>= 20 (get-distance obj1-pose obj2-pose))
-             (setf tmp T)
-             (setf tmp NIL))))
-    tmp))
-
-(defun get-elems-by-tf ()
-  (let* ((sem-map (sem-map-utils:get-semantic-map))
-        (sem-hash (slot-value sem-map 'sem-map-utils:parts))
-         (sem-keys (hash-table-keys sem-hash))
-       ;;  (semm-hash (copy-hash-table sem-hash))
-         (new-hash (make-hash-table))(name NIL)
-         (obj-pose NIL))
-    (dotimes (index (length sem-keys))
-      (let*((pose (get-elem-pose (nth index sem-keys)))
-            (pub (cl-tf:set-transform *tf* (cl-transforms-stamped:make-transform-stamped "map" (nth index sem-keys) (roslisp:ros-time) (cl-transforms:origin pose) (cl-transforms:orientation pose))))
-            (obj-pose (cl-transforms-stamped:transform->pose (cl-tf:lookup-transform *tf* "human" (nth index sem-keys)))))
-      (setf (gethash (nth index sem-keys) new-hash) obj-pose)))
-(copy-hash-table new-hash)))
-
-(defun get-elem-by-small-dist (liste)
-  (let*((checker 1000)
-        (elem NIL))
-    (dotimes (index (length liste))
-      (cond ((<= (parse-integer (second (split-sequence:split-sequence #\: (nth index liste)))) checker)
-             (setf checker (parse-integer (second (split-sequence:split-sequence #\: (nth index liste)))))
-             (setf elem(nth index liste)))))
-    elem))
-
-(defun get-elem-by-big-dist (liste)
-  (let*((checker 0)
-        (elem NIL))
-    (dotimes (index (length liste))
-      (cond ((>= (parse-integer (second (split-sequence:split-sequence #\: (nth index liste)))) checker)
-             (setf checker (parse-integer (second (split-sequence:split-sequence #\: (nth index liste)))))
-             (setf elem(nth index liste)))))
-    elem))
+     (if (and (not (null (checker-elems-by-relation->get-elems-by-tf
+                          (nth index liste) name spatial)))
+              (> 5 (get-distance (get-elem-by-pose name) (get-elem-by-pose (nth index liste)))))
+         (setf resultlist (append resultlist (list 
+                                              (format NIL "~a:~a"(nth index liste)                                                           (get-distance
+                                                                                                                                              (get-pose-by-elem
+                                                                                                                                               (nth index liste))                                                          (get-elem-by-pose name))))))))
+    (if (null resultlist)
+        (setf result NIL)
+        (setf result  (sort-list resultlist)))
+    result))
