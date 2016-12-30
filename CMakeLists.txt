@@ -7,7 +7,7 @@ project(hmi_cram)
 find_package(catkin REQUIRED COMPONENTS
   alexandria
   cram_beliefstate
-  cram_bullect_reasoning_designators
+  cram_bullet_reasoning_designators
   cram_bullet_reasoning
   cram_bullet_reasoning_belief_state
   cram_designators

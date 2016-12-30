@@ -25,6 +25,8 @@
 (in-package :hmi-cram)
 
 (defvar *sem-map* NIL)
+(defvar *tf* NIL)
+(defvar *pub* NIL)
 
 ;; ROSSERVICE FOR CALLING HMI-CRAM
 (defun hmi-cram ()
@@ -44,3 +46,9 @@
    (format t "desigs: ~a~%" desigs)
    (format t "create-desig: ~a~%" create_desig)
 (roslisp:make-response :result "Done!")))
+
+(defun init-tf ()
+  (setf *tf* (make-instance 'cl-tf:transform-listener))
+  (setf *pub* (cl-tf:make-transform-broadcaster)))
+
+(roslisp-utilities:register-ros-init-function init-tf)

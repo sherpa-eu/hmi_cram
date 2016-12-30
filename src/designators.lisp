@@ -31,55 +31,72 @@
 (defun create-desig-based-on-hmi-call (desigs)
   (let ((action-list '()))
     (loop for index being the elements of desigs
-	  do(let ((property-list NIL)
-		  (loc_desig NIL)
-		  (action (std_msgs-msg:data
+          do(let ((property-list NIL)
+                  (loc_desig NIL)
+                  (action (std_msgs-msg:data
                            (hmi_interpreter-msg:action_type index)))
-		  (actor (std_msgs-msg:data
-			  (hmi_interpreter-msg:actor index)))
-		  (operator (std_msgs-msg:data
-			     (hmi_interpreter-msg:instructor index)))
-		  (viewpoint (std_msgs-msg:data
+                  (actor (std_msgs-msg:data
+                          (hmi_interpreter-msg:actor index)))
+                  (operator (std_msgs-msg:data
+                             (hmi_interpreter-msg:instructor index)))
+                  (viewpoint (std_msgs-msg:data
                               (hmi_interpreter-msg:viewpoint index)))
-		  (propkeys (hmi_interpreter-msg:propkeys index)))
-	      (loop for jndex being the elements of propkeys
-		    do(let((pose NIL)
-			   (obj NIL)
-			   (spatial
+                  (propkeys (hmi_interpreter-msg:propkeys index)))
+              (loop for jndex being the elements of propkeys
+                    do(let((pose NIL)
+                           (obj NIL)
+                           (spatial
                              (std_msgs-msg:data
                               (hmi_interpreter-msg::object_relation jndex)))
-			    (object
+                           (object
                                (std_msgs-msg:data
                               (hmi_interpreter-msg::object jndex)))
-			   (color
+                           (color
                                (std_msgs-msg:data
                               (hmi_interpreter-msg::object_color jndex)))
                            (size
                              (std_msgs-msg:data
                               (hmi_interpreter-msg::object_size jndex)))
-			   (num
+                           (num
                              (std_msgs-msg:data
                               (hmi_interpreter-msg::object_num jndex)))
-			   (flag
+                           (flag
                              (std_msgs-msg:data
                               (hmi_interpreter-msg::flag jndex))))
-			(if (and (string-equal spatial "null")
-               (not (string-equal "null" object)))
-			    (setf spatial "ontop"))
-			(cond((string-equal "true" flag)
-            (format t "flag> ~a~%" flag)
-			      (setf pose (cl-transforms:make-3d-vector
-					  (geometry_msgs-msg:x
-					   (hmi_interpreter-msg:pointing_gesture jndex))
-					  (geometry_msgs-msg:y
-					   (hmi_interpreter-msg:pointing_gesture jndex))
-					  (geometry_msgs-msg:z
-					   (hmi_interpreter-msg:pointing_gesture jndex))))
-			      (setf obj (give-pointed-obj-based-on-language object pose)))
+                        (if (and (string-equal spatial "null")
+                                 (not (string-equal "null" object)))
+                            (setf spatial "ontop"))
+                        (format t "flag> ~a~%" flag)
+                        (cond((string-equal "true" flag)
+                              (setf pose (cl-transforms:make-pose 
+                                          (cl-transforms:make-3d-vector
+                                           (geometry_msgs-msg:x
+                                            (geometry_msgs-msg:position
+                                             (hmi_interpreter-msg:pointing_gesture jndex)))
+                                           (geometry_msgs-msg:y
+                                            (geometry_msgs-msg:position
+                                             (hmi_interpreter-msg:pointing_gesture jndex)))
+                                           (geometry_msgs-msg:z
+                                            (geometry_msgs-msg:position
+                                             (hmi_interpreter-msg:pointing_gesture jndex))))
+                                          (cl-transforms:make-quaternion
+                                           (geometry_msgs-msg:x
+                                            (geometry_msgs-msg:orientation
+                                             (hmi_interpreter-msg:pointing_gesture jndex)))
+                                           (geometry_msgs-msg:y
+                                            (geometry_msgs-msg:orientation
+                                             (hmi_interpreter-msg:pointing_gesture jndex)))
+                                           (geometry_msgs-msg:z
+                                            (geometry_msgs-msg:orientation
+                                             (hmi_interpreter-msg:pointing_gesture jndex)))
+                                           (geometry_msgs-msg:w
+                                            (geometry_msgs-msg:orientation
+                                             (hmi_interpreter-msg:pointing_gesture jndex))))))
+                              (setf obj (give-pointed-direction object pose)))
                              (t (setf obj NIL)))
                         (if (null obj)
                             (setf obj object))
-                        (setf property-list (append (list  (list (list (direction-symbol spatial) obj)
+                        (setf property-list (append (list  (list (list (set-keyword spatial) obj)
                                                                  (list :color color)
                                                                  (list :size size)
                                                                  (list :num num))) property-list))))
