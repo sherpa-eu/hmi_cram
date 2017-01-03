@@ -44,134 +44,82 @@
    pose))
 
 ;;
-;; Get the bounding box size of an element that is in front of the agent
-;; Calculating all objects in front of the agent, checking the type and
-;; picking out the object by name and computing the bounding box
-;; @objtype: object type of the calculated object
-;; @shape: shape of the calculated object e.g. big or small
-;;
-(defun get-bboxsize-by-elem->get-elems-agent-front-by-dist (objtype shape)
- (let*((liste (get-elems-agent-front-by-dist))
-       (objtypliste '())
-       (objdistliste '())
-       (result NIL))
-     (dotimes (index (length liste))
-       (cond((string-equal
-              objtype
-              (get-elem-by-type (first (split-sequence:split-sequence #\: (nth index liste)))))
-             (setf objtypliste (append objtypliste (list (nth index liste))))
-             (cond ((> 3 (length objdistliste))
-                    (format t "index ~a~%"  (nth index liste))
-                     (setf objdistliste (append objdistliste
-                                               (list (get-bboxsize-by-elem (first (split-sequence:split-sequence #\: (nth index liste))))))))))))
-   (if(string-equal "small" shape)
-       (if (> (first objdistliste)
-              (second objdistliste))
-              (setf result (first (split-sequence:split-sequence #\: (second objtypliste))))
-              (setf result (first (split-sequence:split-sequence #\: (first objtypliste)))))
-       (if (> (first objdistliste)
-              (second objdistliste))
-              (setf result (first (split-sequence:split-sequence #\: (first objtypliste))))
-              (setf result (first (split-sequence:split-sequence #\: (second objtypliste))))))
-   result))
-
-;;
-;; Get the specific element by range "first", "second", "third"
-;; @type: the type of the element
-;; @range; the range of the element
-;;
- (defun get-elem-by-range->get-elems-by-type (type range)
-   (let* ((types (get-elems-agent-front-by-type  type))
-          (result NIL))
-   (dotimes (index (length types))
-     (cond ((string-equal "one" range)
-            (setf result (first (split-sequence:split-sequence #\: (first types)))))
-           ((string-equal "two" range)
-            (setf result (first (split-sequence:split-sequence #\: (second types)))))
-           ((string-equal "three" range)
-            (setf result (first (split-sequence:split-sequence #\: (third types)))))))
-     result))
-;;
 ;; Get elements in front of the agent by specific type
 ;; @type: type of the object
-;;
-(defun get-elems-agent-front-by-type (type)
-  (let*((liste (get-front-elems-of-agent-with-dist))
+;; 
+(defun get-front-elems-of-agent-by-type (type &optional (viewpoint "human"))
+  (let*((liste (get-front-elems-of-agent viewpoint))
         (resultlist '()))
     (dotimes (index (length liste))
       (if(string-equal type
-                       (get-elem-by-type
-                        (first (split-sequence:split-sequence #\: (nth index liste)))))
-         (setf resultlist (append resultlist (list (first (split-sequence:split-sequence #\: (nth index liste))))))))
+                       (get-type-by-elem (nth index liste)))
+         (setf resultlist (append resultlist (list (nth index liste))))))
     resultlist))
 
-;;
-;; Get next element based on previous element without
-;; any conditions
-;; @typ: element type
-;; @spatial: spatial relation of the elements
-;; @name: element name
-;;
-(defun get-next-elem-depend-on-prev-elem-no-con (typ spatial name)
-  (let*((liste (get-elems-of-semmap-by-type typ))
-        (resultlist '())
-        (result NIL))
-    (dotimes (index (length liste))
-      (if (not (null (checker-elems-by-relation->get-elems-by-tf
-                      (nth index liste) name spatial)))
-          (setf resultlist (append resultlist (list 
-                                               (format NIL "~a:~a"(nth index liste)                                                       (get-distance
-                                                        (get-elem-by-pose
-                                                         (nth index liste))
-                                                        (get-elem-by-pose name))))))))
-    (setf result (sort-list resultlist))
-    result))
+                      
+;; Checking the relation of the objects. See if obj1 satisfy the
+;; property towards obj2 or so... 
+(defun check-elems-by-relation->get-elems-in-tf (objname1 objname2 property)
+  (let*((sem-hash (get-elems-in-tf-agent))
+        (obj1-pose (gethash objname1 sem-hash))
+        (obj2-pose (gethash objname2 sem-hash))
+        (tmp NIL))
+    (publish-pose obj1-pose :id 72827)
+    (publish-pose obj2-pose :id 272827)
+    (cond ((string-equal property "behind")
+         (setf tmp (and (> (cl-transforms:x (cl-transforms:origin obj1-pose))
+                       (cl-transforms:x (cl-transforms:origin obj2-pose)))
+                        (plusp (cl-transforms:x (cl-transforms:origin obj1-pose))))))
+          ((string-equal property "in-front-of")
+         (setf tmp (and (< (cl-transforms:x (cl-transforms:origin obj1-pose))
+                           (cl-transforms:x (cl-transforms:origin obj2-pose)))
+                        (plusp (cl-transforms:x (cl-transforms:origin obj2-pose))))))
+        ((string-equal property "right")
+         (setf tmp (< (cl-transforms:y (cl-transforms:origin obj1-pose))
+                      (cl-transforms:y (cl-transforms:origin obj2-pose)))))
+        ((string-equal property "left")
+         (setf tmp (> (cl-transforms:y (cl-transforms:origin obj1-pose))
+                      (cl-transforms:y (cl-transforms:origin obj2-pose)))))
+        ((string-equal property "close-to")
+         (if (>= 4 (get-distance obj1-pose obj2-pose))
+             (setf tmp T)
+             (setf tmp NIL)))
+        ((or (string-equal property "to")
+              (string-equal property "around")
+              (string-equal property "next"))
+         (if (>= 20 (get-distance obj1-pose obj2-pose))
+             (setf tmp T)
+             (setf tmp NIL))))
+    tmp))
 
+(defun get-elems-in-tf (&optional (viewpoint "human"))
+  (let* ((sem-map (sem-map-utils:get-semantic-map))
+        (sem-hash (slot-value sem-map 'sem-map-utils:parts))
+         (sem-keys (hash-table-keys sem-hash))
+       ;;  (semm-hash (copy-hash-table sem-hash))
+         (new-hash (make-hash-table))(name NIL)
+         (obj-pose NIL))
+    (dotimes (index (length sem-keys))
+      (let*((pose (get-pose-by-elem (nth index sem-keys)))
+            (pub (cl-tf:set-transform *tf* (cl-transforms-stamped:make-transform-stamped "map" (nth index sem-keys) (roslisp:ros-time) (cl-transforms:origin pose) (cl-transforms:orientation pose))))
+            (obj-pose (cl-transforms-stamped:transform->pose (cl-tf:lookup-transform *tf* viewpoint (nth index sem-keys)))))
+      (setf (gethash (nth index sem-keys) new-hash) obj-pose)))
+(copy-hash-table new-hash)))
 
-;;
-;; Getting the first element based on "name", "type", "shape"
-;; "spatial relation"
-;; @name: current object name
-;; @type: specific object type
-;; @shape: object shape
-;; @spatial: relation of the object
-;;
-(defun get-first-elem-by-name-type-shape-spatial (name type shape spatial)
-  (let ((liste (get-elems-agent-front-by-type type))
-        (resultlist '())
-        (result NIL)
-        (tmplist NIL))
-    (format t "liste ~a~%" liste)
-    (dotimes (index (length liste))
-      (if (not (null (checker-elems-by-relation->get-elems-by-tf
-                      name (nth index liste) spatial)))
-          (setf resultlist (append resultlist (list 
-                                                   (format NIL "~a:~a"(nth index liste)
-                                                           (get-distance
-                                                            (get-elem-by-pose
-                                                             (nth index liste))
-                                                            (get-elem-by-pose name))))))))
-    (setf resultlist (sort-list resultlist))
-    (dotimes (jndex (length resultlist))
-        (format t "tmplist1 ~a~%" tmplist)
-      (setf tmplist (append tmplist (list (get-elem-by-bboxsize
-                             (first (split-sequence:split-sequence #\: (nth jndex resultlist))))))))
-    (if(string-equal "big" shape)
-       (cond((> (first tmplist) (second tmplist))
-             (setf result (first resultlist)))
-            ((< (first tmplist) (second tmplist))
-             (setf result (second resultlist)))
-            (t (if(> (second tmplist) (third tmplist))
-                  (setf result (second resultlist))
-                  (setf result (third resultlist)))))
-       (cond((< (first tmplist) (second tmplist))
-             (setf result (first resultlist)))
-            ((> (first tmplist) (second tmplist))
-             (setf result (second resultlist)))
-            (t (if(< (second tmplist) (third tmplist))
-                  (setf result (second resultlist))
-                  (setf result (third resultlist))))))
-    result))
+(defun get-elems-in-tf-agent (&optional (viewpoint "human"))
+  (let* ((sem-map (sem-map-utils:get-semantic-map))
+         (sem-hash (slot-value sem-map 'sem-map-utils:parts))
+         (sem-keys (hash-table-keys sem-hash))
+       ;;  (semm-hash (copy-hash-table sem-hash))
+         (new-hash (make-hash-table))(name NIL)
+         (obj-pose NIL))
+    (dotimes (index (length sem-keys))
+      (let*((pose (get-pose-by-elem (nth index sem-keys)))
+            (human-pose (cl-transforms:transform->pose (cl-tf:lookup-transform *tf* "map" viewpoint)))
+            (obj-pose (cl-transforms:make-pose (cl-transforms:origin pose)
+                                               (cl-transforms:orientation human-pose))))
+      (setf (gethash (nth index sem-keys) new-hash) obj-pose)))
+(copy-hash-table new-hash)))
 
 (defun get-type-by-elem (name)
  (let*((type NIL)
@@ -191,135 +139,29 @@
    type))
 
 ;;
-;; Get previous element depending on next element
-;; without any conditions
+;; Get next element based on previous element without
+;; any conditions
 ;; @typ: element type
-;; @spatial: spatial relation of the element
+;; @spatial: spatial relation of the elements
 ;; @name: element name
 ;;
-(defun get-prev-elem-depend-on-next-elem-no-con (typ spatial name)
-  (let*((liste (get-elems-of-semmap-by-type typ))
-        (resultlist '())
-        (result NIL))
+(defun get-next-elem-by-prev-elem (type spatial name)
+  (let*((liste (get-front-elems-of-agent-by-type type))
+        (resultlist '()))
+  ;;  (format t "~a~%" liste)
     (dotimes (index (length liste))
-      (if (not (null (checker-elems-by-relation->get-elems-by-tf
+      (if (not (null (check-elems-by-relation->get-elems-in-tf
                       name (nth index liste) spatial)))
-         (setf resultlist (append resultlist (list 
-                                              (format NIL "~a:~a"(nth index liste)
-                                                      (get-distance
-                                                       (get-elem-by-pose
-                                                        (nth index liste))
-                                                       (get-elem-by-pose name))))))))
-    (setf result (sort-list resultlist))
-    result))
-
-
-;;
-;; Getting next element depending on previous element
-;; @typ: object type
-;; @spatial: spatial relation
-;; @name: object name
-;;
-(defun get-next-elem-depend-on-prev-elem (typ spatial name)
-  (let*((liste (get-elems-of-semmap-by-type typ))
-        (resultlist '())
-        (result NIL))
-   (dotimes (index (length liste))
-     (if (and (not (null (checker-elems-by-relation->get-elems-by-tf
-                          (nth index liste) name spatial)))
-              (> 5 (get-distance (get-elem-by-pose name) (get-elem-by-pose (nth index liste)))))
-         (setf resultlist (append resultlist (list 
-                                              (format NIL "~a:~a"(nth index liste)                                                           (get-distance
-                                                                                                                                              (get-pose-by-elem
-                                                                                                                                               (nth index liste))                                                          (get-elem-by-pose name))))))))
-    (if (null resultlist)
-        (setf result NIL)
-        (setf result  (sort-list resultlist)))
-    result))
-
-
+          (setf resultlist (append resultlist (list 
+                                               (format NIL "~a:~a"(nth index liste)                                                       (get-distance
+                                                        (get-pose-by-elem
+                                                         (nth index liste))
+                                                        (get-pose-by-elem name))))))))
+    (sort-list resultlist)))
 
 (defun set-keyword (string)
   (intern (string-upcase string) "KEYWORD"))
 
-(defun give-pointed-direction (object pose)
-  (let ((result NIL)
-        (liste (calculate-points pose))) 
-    (cond ((string-equal "null" object)
-        ())
-        (t (
-
-  )))
-    result))
-
-(defun calculate-poses (pose)
-  (let((poslist'()))
-       (publish-pose pose :id 1100)
-    (loop for index from 3 to 100
-          do (cl-tf:set-transform *tf* (cl-transforms-stamped:make-transform-stamped
-                                        "map" "gesture"
-                                        (roslisp:ros-time)
-                                        (cl-transforms:origin pose)
-                                        (cl-transforms:orientation pose)))
-             (setf posexyz (cl-transforms-stamped:make-pose-stamped
-                            "gesture" 0.0
-                            (cl-transforms:make-3d-vector index 1 1)
-                            (cl-transforms:make-identity-rotation)))
-             (setf posex-yz (cl-transforms-stamped:make-pose-stamped
-                             "gesture" 0.0
-                             (cl-transforms:make-3d-vector index -1 1)
-                             (cl-transforms:make-identity-rotation)))
-             (setf posex-y-z (cl-transforms-stamped:make-pose-stamped
-                              "gesture" 0.0
-                              (cl-transforms:make-3d-vector index -1 -1)
-                              (cl-transforms:make-identity-rotation)))
-             (setf posexy-z (cl-transforms-stamped:make-pose-stamped
-                             "gesture" 0.0
-                             (cl-transforms:make-3d-vector index 1 -1)
-                             (cl-transforms:make-identity-rotation)))
-             (setf posex (cl-transforms-stamped:make-pose-stamped
-                          "gesture" 0.0
-                          (cl-transforms:make-3d-vector index 0 0)
-                          (cl-transforms:make-identity-rotation)))
-             (setf posexz (cl-transforms-stamped:make-pose-stamped
-                         "gesture" 0.0
-                         (cl-transforms:make-3d-vector index 0 1)
-                         (cl-transforms:make-identity-rotation)))
-             (setf posex-z (cl-transforms-stamped:make-pose-stamped
-                            "gesture" 0.0
-                            (cl-transforms:make-3d-vector index 0 -1)
-                            (cl-transforms:make-identity-rotation)))
-             (setf posexy (cl-transforms-stamped:make-pose-stamped
-                           "gesture" 0.0
-                           (cl-transforms:make-3d-vector index 1 0)
-                           (cl-transforms:make-identity-rotation)))
-             (setf posex-y (cl-transforms-stamped:make-pose-stamped
-                            "gesture" 0.0
-                            (cl-transforms:make-3d-vector index -1 0)
-                            (cl-transforms:make-identity-rotation)))  
-             (setf xyz  (cl-transforms-stamped:pose-stamped->pose (cl-tf:transform-pose *tf* :pose posexyz :target-frame "map")))
-             (setf x-yz (cl-transforms-stamped:pose-stamped->pose (cl-tf:transform-pose *tf* :pose posex-yz :target-frame "map")))
-             (setf x-y-z  (cl-transforms-stamped:pose-stamped->pose (cl-tf:transform-pose *tf* :pose posex-y-z :target-frame "map")))
-             (setf xy-z  (cl-transforms-stamped:pose-stamped->pose (cl-tf:transform-pose *tf* :pose posexy-z :target-frame "map")))
-             (setf x (cl-transforms-stamped:pose-stamped->pose (cl-tf:transform-pose *tf* :pose posex :target-frame "map")))
-             (setf xz (cl-transforms-stamped:pose-stamped->pose (cl-tf:transform-pose *tf* :pose posexz :target-frame "map")))
-             (setf x-z (cl-transforms-stamped:pose-stamped->pose (cl-tf:transform-pose *tf* :pose posex-z :target-frame "map")))
-             (setf xy (cl-transforms-stamped:pose-stamped->pose (cl-tf:transform-pose *tf* :pose posexy :target-frame "map")))
-             (setf x-y (cl-transforms-stamped:pose-stamped->pose (cl-tf:transform-pose *tf* :pose posex-y :target-frame "map")))     
-             (setf poslist (append (list  (cl-transforms-stamped:pose-stamped->pose xyz)) poslist))
-             (setf poslist (append (list  (cl-transforms-stamped:pose-stamped->pose x-yz)) poslist))
-             (setf poslist (append (list  (cl-transforms-stamped:pose-stamped->pose x-y-z)) poslist))
-             (setf poslist (append (list  (cl-transforms-stamped:pose-stamped->pose xy-z)) poslist))
-             (setf poslist (append (list  (cl-transforms-stamped:pose-stamped->pose x)) poslist))
-             (setf poslist (append (list  (cl-transforms-stamped:pose-stamped->pose xz)) poslist))
-             (setf poslist (append (list  (cl-transforms-stamped:pose-stamped->pose x-z)) poslist))
-             (setf poslist (append (list  (cl-transforms-stamped:pose-stamped->pose xy)) poslist))
-             (setf poslist (append (list  (cl-transforms-stamped:pose-stamped->pose x-y)) poslist)))
-  (setf poslist (reverse poslist))
-  (dotimes(test (length poslist))
-    do  (format t "test4 ~a~%" (nth test poslist))
-    (publish-pose (nth test poslist) :id (+  test 100)))
-    poslist))
 
 (defun check-distance (point01 point02)
   (let*((pose02 (cl-transforms:make-pose point02 (cl-transforms:make-identity-rotation)))
@@ -369,64 +211,10 @@
         (all (append (append (append (append (append (append (append '() (list fsec)) (list forw2)) (list backw2)) (list right2)) (list left2)) (list up2)) (list down2)))
         (value NIL))
     (dotimes(index (length all))
-      (if (and (>= 3 (nth index all))
+      (if (and (>= 2 (nth index all))
                (null value))
           (setf value T)))
   value))
-
-(defun give-pointed-at-not-bboxes (point)
-  (let*((sem-map  (sem-map:get-semantic-map))
-        (elem NIL)
-        (num (make-list 100))
-        (sem-hash (slot-value sem-map 'sem-map-utils:parts))
-        (sem-keys (hash-table-keys sem-hash))
-    (dotimes (jindex (length liste-tr))
-      do (dotimes(jo (length sem-keys))
-          do(let* ((pose (cl-transforms:origin (slot-value (gethash (nth jo sem-keys) sem-hash) 'sem-map-utils:pose)))
-                   (npoint (cl-transforms:origin (nth jindex liste-tr)))
-                   (upoint (cl-transforms:origin (nth jindex liste-up)))
-                   (dpoint (cl-transforms:origin (nth jindex liste-down)))
-                   (rpoint (cl-transforms:origin (nth jindex liste-right)))
-                   (lpoint (cl-transforms:origin (nth jindex liste-left)))
-                   (fpoint (cl-transforms:origin (nth jindex liste-front)))
-                   (bpoint (cl-transforms:origin (nth jindex liste-back)))
-                   (value (checker-at-distance pose npoint))
-                   (uvalue (checker-at-distance pose upoint))
-                   (dvalue (checker-at-distance pose dpoint))
-                   (rvalue (checker-at-distance pose rpoint))
-                   (lvalue (checker-at-distance pose lpoint))
-                   (fvalue (checker-at-distance pose fpoint))
-                   (bvalue (checker-at-distance pose  bpoint)))
-              ;;(format t "pose is ~a~%" pose)
-                  (cond ((and (or (equal value T)
-                                  (equal uvalue T)
-                                  (equal dvalue T)
-                                  (equal rvalue T)
-                                  (equal lvalue T)
-                                  (equal fvalue T)
-                                  (equal bvalue T))
-                             (not (equal (nth jo sem-keys)
-                                         (find (nth jo sem-keys)
-                                           elem :test #'equal))))
-                        (location-costmap:publish-point  (cl-transforms:origin (nth jindex liste-tr)) :id (+ (+ jo jindex) 1000))
-                        (location-costmap:publish-point  (cl-transforms:origin (nth jindex liste-right)) :id (+ (+ jo jindex) 2000))
-                        (location-costmap:publish-point  (cl-transforms:origin (nth jindex liste-left)) :id (+ (+ jo jindex) 3000))
-                         (location-costmap:publish-point  (cl-transforms:origin (nth jindex liste-front)) :id (+ (+ jo jindex) 4000))
-                        (location-costmap:publish-point  (cl-transforms:origin (nth jindex liste-back )) :id (+ (+ jo jindex) 5000))
-                        (location-costmap:publish-point  (cl-transforms:origin (nth jindex liste-up)) :id (+ (+ jo jindex) 6000))
-                        (location-costmap:publish-point  (cl-transforms:origin (nth jindex liste-down)) :id (+ (+ jo jindex) 7000))
-                        (setf elem (append (list (nth jo sem-keys)) elem)))
-                        
-                       (t
-                         (location-costmap:publish-point  (cl-transforms:origin (nth jindex liste-tr)) :id (+ (+ jo jindex) 11000))
-                        (location-costmap:publish-point  (cl-transforms:origin (nth jindex liste-right)) :id (+ (+ jo jindex) 22000))
-                        (location-costmap:publish-point  (cl-transforms:origin (nth jindex liste-left)) :id (+ (+ jo jindex) 33000))
-                         (location-costmap:publish-point  (cl-transforms:origin (nth jindex liste-front)) :id (+ (+ jo jindex) 44000))
-                        (location-costmap:publish-point  (cl-transforms:origin (nth jindex liste-back )) :id (+ (+ jo jindex) 55000))
-                        (location-costmap:publish-point  (cl-transforms:origin (nth jindex liste-up)) :id (+ (+ jo jindex) 66000))
-                        (location-costmap:publish-point  (cl-transforms:origin (nth jindex liste-down)) :id (+ (+ jo jindex) 77000))                      
-                          )))))
-             (reverse elem))) 
 
 
 ;;;
@@ -494,7 +282,7 @@
                (setf poses (append (list (format NIL"~a:~a" (nth index sem-keys) dist)) poses)))))
        (sort-list poses)))
 
-(defun get-front-elems-of-agent (viewpoint)
+(defun get-front-elems-of-agent (&optional (viewpoint "human"))
   ;;(format t "get-elems-agent-front-by-dist~%")
   (setf *sem-map* (sem-map-utils:get-semantic-map))
   (let*((sem-hash (slot-value *sem-map* 'sem-map-utils:parts))
@@ -516,19 +304,6 @@
       (setf result (append (list (first (split-sequence:split-sequence #\: (nth index poses)))) result)))
     (reverse result)))
 
-(defun get-pointed-elem-by-pose (pose type &optional (viewpoint "human"))
-  (let ((pointed-liste (calculate-poses pose))
-        (agent-elem (get-front-elems-of-agent viewpoint))
-        (elem '()))
-    (dotimes (index (length pointed-liste))
-      (dotimes(in (length agent-elem))
-        (cond ((and (equal T (check-distance (nth in agent-elem) (nth index pointed-liste)))
-                       (string-equal (get-elem-by-type (nth in agent-elem))
-                                     type))
-                  (setf elem (append (list (nth in agent-elem)) elem))
-                  (return)))))
-    (car elem)))
-                  
-    
-    
-        
+(defun get-dist-of-elem-by-agent (name &optional (viewpoint "human"))
+  (format NIL "~a:~a" name (get-distance (get-pose-by-elem name) (cl-transforms:transform->pose (cl-tf:lookup-transform *tf* "map" viewpoint)))))
+

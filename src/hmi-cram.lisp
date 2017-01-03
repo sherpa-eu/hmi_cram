@@ -28,6 +28,7 @@
 (defvar *tf* NIL)
 (defvar *pub* NIL)
 
+
 ;; ROSSERVICE FOR CALLING HMI-CRAM
 (defun hmi-cram ()
   (hmi-cram-call))
@@ -42,7 +43,8 @@
   (setf *sem-map* (sem-map-utils:get-semantic-map))
  (let ((id  (beliefstate:start-node "INTERPRET-INSTRUCTION-DESIGNATOR" NIL 2))
        (newliste '())
-       (create_desig (create-desig-based-on-hmi-call desigs)))
+       (create_desig (create-desig-based-on-hmi-call desigs))
+       (semantic_desig '()))
    (format t "desigs: ~a~%" desigs)
    (format t "create-desig: ~a~%" create_desig)
 (roslisp:make-response :result "Done!")))

@@ -92,7 +92,7 @@
                                            (geometry_msgs-msg:w
                                             (geometry_msgs-msg:orientation
                                              (hmi_interpreter-msg:pointing_gesture jndex))))))
-                              (setf obj (give-pointed-direction object pose)))
+                              (setf obj (get-pointed-elem-by-voice-type object pose type viewpoint)))
                              (t (setf obj NIL)))
                         (if (null obj)
                             (setf obj object))
@@ -109,155 +109,53 @@
 										     (:goal ,loc_desig))))))))
     action-list))
 
-(defun add-semantic-to-desigs (viewpoint loc-desig)
-  (let* ((goal (desig-prop-value loc-desig :goal))
+(defun add-semantic-to-desigs (viewpoint desig)
+  (let* ((goal (desig-prop-value desig :goal))(felem NIL)(tmpproplist '())
          (proplist (desig:properties goal)))
     (cond ((= 1 (length proplist))
            (cond ((not (null (get-pose-by-elem (second (first (first (last proplist))))))) ;;name
                   (setf felem (second (first (first (last proplist)))))
                   (setf tmpproplist (append tmpproplist (list (list (first (first (first (last proplist))))
                                                                     felem)))))
-                 ((not (string-equal "null" (second (third (first (last proplist)))))) ;;;size
-                  (setf felem (get-bboxsize-by-elem->get-elems-agent-front-by-dist
-                               (second (first (first (last proplist))))
-                               (second (third (first (last proplist))))))
-                  (setf tmpproplist (append tmpproplist (list (list  (first (first (first (last proplist))))
-                                                                     felem)))))
-                 ((not (string-equal "null" (second (fourth (first (last proplist)))))) ;;num
-                     (setf felem (get-elem-by-range->get-elems-by-type
-                                  (second (first (first proplist)))
-                                  (second (fourth (first proplist)))))
-                     (setf tmpproplist (append tmpproplist (list (list  (first (first (first (last proplist)))) felem)))))
-                 ((null (get-elem-pose (second (first (first proplist))))) ;;;name
-                     (setf felem  (get-elem-by-type->get-elems-by-type
-                                   (second (first (first (last proplist))))))
-                     (setf tmpproplist (append tmpproplist (list (list (first (first (first (last proplist))))
-                                                                       felem)))))))
+                 ((and (null (get-pose-by-elem (second (first (first proplist))))) ;;;name
+                       (not (null (second (first (first proplist))))))
+                  (setf felem  (first (get-elems-agent-front-by-type
+                                       (second (first (first proplist))) viewpoint)))
+                  (setf tmpproplist (append tmpproplist (list (list (first (first (first (last proplist))))
+                                                                       felem)))))
+                 (t (setf tmpproplist (append tmpproplist (list (list (first (first (first (last proplist))))
+                                                                    felem)))))))
           ((= 2 (length proplist))
-           (setf tmpproplist (add-semantics-two-desigs proplist)))
-          ((= 3 (length proplist))
-           (setf tmpproplist (add-semantics-three-desigs proplist))))
+           (setf tmpproplist (add-semantics-two-desigs proplist viewpoint))))
     (make-designator :location tmpproplist)))
 
-(defun add-semantics-two-desigs  (proplist)
+(defun add-semantics-two-desigs  (proplist viewpoint)
   (let*((list2 (first (last proplist)))
         (list1 (first proplist))
-        (typelist1 (get-elems-agent-front-by-type (second (first list1))))
+        (typelist1 (get-front-elems-of-agent-by-type (second (first list1)) viewpoint))
         (tmpproplist '())
-        (selem NIL)(checker NIL)(felem NIL))   
-          (cond((and (get-pose-by-elem (second (first list1))) ;;name1 ;;typ2-shape2
-                     (not (string-equal "null" (second (third list2)))))
-                (setf selem (first
-                             (split-sequence:split-sequence #\:
-                                                            (get-new-elem-by-name-type-shape-spatial
-                                                              (second (first list1))
-                                                              (second (first list2))
-                                                              (second (third list2))
-                                                              (first (first list1))))))
-                (setf tmpproplist (append tmpproplist (list(list (first (first list1))
-                                                                  (second (first list1)))
-                                                            (list (first (first list2))
-                                                                  selem)))))
-               ((get-pose-by-elem (second (first list1))) ;;name1
-                (setf selem
-                      (first
-                       (split-sequence:split-sequence #\:
-                                                      (first
-                                                       (get-next-elem-depend-on-prev-elem-no-con
-                                                        (second (first list2))
-                                                        (first (first list1))
-                                                        (second (first list1)))))))
-                 (setf tmpproplist (append tmpproplist (list (list (first (first list1))
-                                                                   (second (first list1)))
-                                                             (list (first (first list2))
-                                                                   selem)))))
-               ((and (get-pose-by-elem (second (first list2))) 
-                     (not (string-equal "null" (second (third list1)))))
-                (setf felem
-                      (first
-                       (split-sequence:split-sequence #\:
-                                                      (get-first-elem-by-name-type-shape-spatial
-                                                       (second (first list2))
-                                                       (second (first list1))
-                                                       (second (third list1))
-                                                       (first (first list1))))))   
+        (dist 10)
+        (selem NIL)(felem NIL))
+          (cond((and (null (get-pose-by-elem (second (first list1)))) ;;type
+                     (null (get-pose-by-elem (second (first list2)))))
+             ;;   (format t "~a~% ~a~%" (second (first list2)) (first (first list1)))
+                (dotimes (index (length typelist1))
+                   (let((tmp (get-next-elem-by-prev-elem 
+                                   (second (first list2))
+                                   (first (first list1))
+                                   (nth index typelist1))))
+                     (dotimes (in (length tmp))
+                          (if (not (null (nth in tmp)))
+                              (cond((and (> 20 (read-from-string (second (split-sequence:split-sequence #\: (nth in tmp)))))
+                                         (>= dist (read-from-string (second (split-sequence:split-sequence #\: (nth in tmp))))))
+                                    (setf dist (read-from-string (second (split-sequence:split-sequence #\: (nth in tmp)))))
+                                 (setf felem (nth index typelist1))
+                                 (setf selem (first (split-sequence:split-sequence #\: (nth index tmp))))))))))))
                 (setf tmpproplist (append tmpproplist (list (list (first (first list1))
-                                                                  felem)
-                                                            (list (first (first list2))
-                                                                  (first (second list2)))))))
-                ((get-pose-by-elem (second (first list2))) ;;name2
-                 (setf felem
-                       (first
-                        (split-sequence:split-sequence #\:
-                                                       (first
-                                                        (get-prev-elem-depend-on-next-elem-no-con
-                                                         (second (first list1))
-                                                         (first (first list1))
-                                                         (second (first list2)))))))
-                 (setf tmpproplist (append tmpproplist (list (list (first (first list1))
                                                                    felem)
                                                              (list (first (first list2))
-                                                                  (second (first list2)))))))
-                (t (dotimes (index (length typelist1))
-                     (if (null checker)
-                         (cond((null (get-pose-by-elem (second (first list2))))
-                               (setf selem
-                                     (first
-                                      (split-sequence:split-sequence #\:
-                                                                     (first
-                                                                      (get-next-elem-depend-on-prev-elem
-                                                                       (second (first list2))
-                                                                       (first (first list1))
-                                                                       (nth index typelist1))))))
-                               (cond ((null selem)
-                                      (setf checker NIL))
-                                     (t (setf checker T)
-                                        (setf tmpproplist (list (list (first (first list1))
-                                                                      (nth index typelist1))
-                                                                (list (first (first list2))
-                                                                            selem)))))))
-                         (return)))))
-                                       
-     tmpproplist))
+                                                                   selem))))                    
+            tmpproplist))
     
 
-(defun add-semantics-three-desiga (proplist)
-  (let*((list1 (first (last proplist)))
-        (list3 (first proplist))
-        (list2 (second proplist))
-        (typelist1 (get-elems-agent-front-by-type (second (first list1))))
-        (tmpproplist '())
-        (checker NIL)(selem NIL)(telem NIL))
-    (dotimes (index (length typelist1))
-      (if (null checker)
-          (cond((null (get-pose-by-elem (second (first list1)))) ;;;not name
-                (cond ((null (get-pose-by-elem (second (first list2))))
-                       (setf telem (first
-                                    (split-sequence::split-sequence #\:
-                                                                    (first
-                                                                     (get-next-elem-depend-on-prev-elem
-                                                                      (second (first list2))
-                                                                      (first (first list2))
-                                                                      (nth index typelist1))))))
-                       (cond ((null telem)
-                              (setf checker NIL))
-                             (t (setf checker T)
-                                (cond ((null (get-pose-by-elem (second (first list3))))
-                                       (setf selem (first
-                                                    (split-sequence:split-sequence #\:
-                                                                                   (first
-                                                                                    (get-next-elem-depend-on-prev-elem
-                                                                                     (second (first list3))
-                                                                                     (first (first list3))
-                                                                                     (nth index typelist1))))))
-                                       (cond ((null selem)
-                                              (setf checker NIL))
-                                              (t                                      
-                                                 (setf tmpproplist (list (list (first (first list1))
-                                                                               (nth index typelist1))
-                                                                         (list (first (first list2))
-                                                                               selem)
-                                                                         (list (first (first list3))
-                                                                               telem)))))))))))))
-          (return)))
-    (reverse tmpproplist)))
+

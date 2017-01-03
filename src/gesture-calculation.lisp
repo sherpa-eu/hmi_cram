@@ -28,72 +28,25 @@
 
 (in-package :hmi-cram)
 
-(defun give-pointed-obj-based-on-language (obj vec)
-  ;;(publish-pose-color (get-gesture->relative-world  vec (tf-human-to-map)) (cl-transforms:make-3d-vector 1 1 0))  
-  (let((liste (give-pointed-at-not-bboxes vec))
-       (elem NIL))
-    (dotimes (index (length liste))
-      (if (and (equal elem NIL)
-           (string-equal (get-elem-by-type (nth index liste)) obj))
-          (setf elem  (nth index liste))))
-    (cond((equal elem NIL)
-          (let ((new-liste (get-element-based-on-ground-with-gesture vec)))
-            (dotimes (jindex (length new-liste))
-                (if (string-equal (get-elem-type (nth jindex new-liste)) obj)
-                    (setf elem  (nth jindex liste)))))))
-    (if (equal NIL elem)
-        (setf elem (get-specific-elem-closeto-human obj)))
-    elem))
+(defun get-pointed-elem-by-voice-type (pose type &optional (viewpoint "human"))
+  (let ((poses-liste (calculate-ray pose))
+        (agent-elem (get-front-elems-of-agent viewpoint))
+        (elem '()))
+    (dotimes (index (length poses-liste))
+      (dotimes(in (length agent-elem))
+        (publish-pose (get-pose-by-elem (nth in agent-elem)) :id (+ 200 in))
+        (publish-pose  (nth index poses-liste) :id (+ 3000 index))
 
-(defun get-element-based-on-ground-with-gesture (vec)
-  (let* ((sem-map  (sem-map:get-semantic-map))
-         (elem NIL)
-         (sem-hash (slot-value sem-map 'sem-map-utils:parts))
-         (sem-keys (hash-table-keys sem-hash))
-         (incrementer 0)
-         (num (make-list 150))
-         (valuable (list-the-values num vec)))
-   ;; (format t "test~%")
-    (let*((liste (calculated-five-down-levels valuable)))
-       (dotimes (mo (length liste))
-         do (let*((new-point (nth mo liste))
-                  (smarter (+ (* 10 incrementer) 2)))
-   (dotimes (jndex (length sem-keys))
-               do(let* ((elem1 (first (get-bbox-as-aabb (nth jndex sem-keys) sem-hash)))
-                        (elem2 (second (get-bbox-as-aabb (nth jndex sem-keys) sem-hash))))
-                   (setf value
-                         (semantic-map-costmap::inside-aabb elem1 elem2  (cl-transforms:origin new-point)))
-                   (cond ((equal value T)
-                            ;;(location-costmap::publish-point (cl-transforms:origin new-point) :id smarter)
-                          (setf elem (append (list (nth jndex sem-keys)) elem))
-                          (remove-duplicates elem))
-                         (t   ;;(location-costmap::publish-point (cl-transforms:origin new-point) :id smarter)
-                           )))
-                (setf incrementer (+ incrementer 2))))))
-              (reverse (remove-duplicates elem)))) 
-
-
-
-;;###################################################################################################################################################################################################################################################################################################################GROUND FOR POINTING GESTURE#############################################################################################################################################;;
-;; GROUND FOR GESTURE
-
-
-;;
-;;Getting the min and max values of a bounding box
-;;
-(defun get-bbox-as-aabb (name sem-hash)
-(let*((dim-x (cl-transforms:x (slot-value (gethash name sem-hash) 'sem-map-utils:dimensions)))
-      (dim-y (cl-transforms:y (slot-value (gethash name sem-hash) 'sem-map-utils:dimensions)))
-      (dim-z (cl-transforms:z (slot-value (gethash name sem-hash) 'sem-map-utils:dimensions)))
-      (pose-x (cl-transforms:x (cl-transforms:origin  (slot-value (gethash name sem-hash) 'sem-map-utils:pose))))
-       (pose-y (cl-transforms:y (cl-transforms:origin  (slot-value (gethash name sem-hash) 'sem-map-utils:pose))))
-      (min-vec (cl-transforms:make-3d-vector (- pose-x (/ dim-x 2))
-                                             (- pose-y (/ dim-y 2))
-                                             0))
-      (max-vec (cl-transforms:make-3d-vector (+ pose-x (/ dim-x 2))
-                                             (+ pose-y (/ dim-y 2))
-                                             dim-z)))
-  (cram-semantic-map-costmap::get-aabb min-vec max-vec)))
+        (cond ((and (equal T (check-distance (cl-transforms:origin (get-pose-by-elem (nth in agent-elem)))
+                                             (cl-transforms:origin (nth index poses-liste))))
+                       (string-equal (get-type-by-elem (nth in agent-elem))
+                                     type))
+               (setf elem (append (list (nth in agent-elem)) elem))))))
+    (reverse (remove-duplicates elem))))
+        
+(defun give-pointed-direction (pose)
+  (let ((liste (calculate-ray pose)))
+    (nth 800 liste)))
 
 (defun square (n)
   (* n n))
@@ -115,3 +68,75 @@
                      (maphash (lambda (k _v) (push k keys)) hash-table)
                      keys))
 
+
+(defun calculate-ray (pose)
+  (let((poslist'()))
+       (publish-pose pose :id 1100)
+    (loop for index from 3 to 100
+          do (cl-tf:set-transform *tf* (cl-transforms-stamped:make-transform-stamped
+                                        "map" "gesture"
+                                        (roslisp:ros-time)
+                                        (cl-transforms:origin pose)
+                                        (cl-transforms:orientation pose)))
+             (setf posexyz (cl-transforms-stamped:make-pose-stamped
+                            "gesture" 0.0
+                            (cl-transforms:make-3d-vector index 1 1)
+                            (cl-transforms:make-identity-rotation)))
+             (setf posex-yz (cl-transforms-stamped:make-pose-stamped
+                             "gesture" 0.0
+                             (cl-transforms:make-3d-vector index -1 1)
+                             (cl-transforms:make-identity-rotation)))
+             (setf posex-y-z (cl-transforms-stamped:make-pose-stamped
+                              "gesture" 0.0
+                              (cl-transforms:make-3d-vector index -1 -1)
+                              (cl-transforms:make-identity-rotation)))
+             (setf posexy-z (cl-transforms-stamped:make-pose-stamped
+                             "gesture" 0.0
+                             (cl-transforms:make-3d-vector index 1 -1)
+                             (cl-transforms:make-identity-rotation)))
+             (setf posex (cl-transforms-stamped:make-pose-stamped
+                          "gesture" 0.0
+                          (cl-transforms:make-3d-vector index 0 0)
+                          (cl-transforms:make-identity-rotation)))
+             (setf posexz (cl-transforms-stamped:make-pose-stamped
+                         "gesture" 0.0
+                         (cl-transforms:make-3d-vector index 0 1)
+                         (cl-transforms:make-identity-rotation)))
+             (setf posex-z (cl-transforms-stamped:make-pose-stamped
+                            "gesture" 0.0
+                            (cl-transforms:make-3d-vector index 0 -1)
+                            (cl-transforms:make-identity-rotation)))
+             (setf posexy (cl-transforms-stamped:make-pose-stamped
+                           "gesture" 0.0
+                           (cl-transforms:make-3d-vector index 1 0)
+                           (cl-transforms:make-identity-rotation)))
+             (setf posex-y (cl-transforms-stamped:make-pose-stamped
+                            "gesture" 0.0
+                            (cl-transforms:make-3d-vector index -1 0)
+                            (cl-transforms:make-identity-rotation)))  
+             (setf xyz  (cl-transforms-stamped:pose-stamped->pose (cl-tf:transform-pose *tf* :pose posexyz :target-frame "map")))
+             (setf x-yz (cl-transforms-stamped:pose-stamped->pose (cl-tf:transform-pose *tf* :pose posex-yz :target-frame "map")))
+             (setf x-y-z  (cl-transforms-stamped:pose-stamped->pose (cl-tf:transform-pose *tf* :pose posex-y-z :target-frame "map")))
+             (setf xy-z  (cl-transforms-stamped:pose-stamped->pose (cl-tf:transform-pose *tf* :pose posexy-z :target-frame "map")))
+             (setf x (cl-transforms-stamped:pose-stamped->pose (cl-tf:transform-pose *tf* :pose posex :target-frame "map")))
+             (setf xz (cl-transforms-stamped:pose-stamped->pose (cl-tf:transform-pose *tf* :pose posexz :target-frame "map")))
+             (setf x-z (cl-transforms-stamped:pose-stamped->pose (cl-tf:transform-pose *tf* :pose posex-z :target-frame "map")))
+             (setf xy (cl-transforms-stamped:pose-stamped->pose (cl-tf:transform-pose *tf* :pose posexy :target-frame "map")))
+             (setf x-y (cl-transforms-stamped:pose-stamped->pose (cl-tf:transform-pose *tf* :pose posex-y :target-frame "map")))     
+             (setf poslist (append (list  (cl-transforms-stamped:pose-stamped->pose xyz)) poslist))
+             (setf poslist (append (list  (cl-transforms-stamped:pose-stamped->pose x-yz)) poslist))
+             (setf poslist (append (list  (cl-transforms-stamped:pose-stamped->pose x-y-z)) poslist))
+             (setf poslist (append (list  (cl-transforms-stamped:pose-stamped->pose xy-z)) poslist))
+             (setf poslist (append (list  (cl-transforms-stamped:pose-stamped->pose x)) poslist))
+             (setf poslist (append (list  (cl-transforms-stamped:pose-stamped->pose xz)) poslist))
+             (setf poslist (append (list  (cl-transforms-stamped:pose-stamped->pose x-z)) poslist))
+             (setf poslist (append (list  (cl-transforms-stamped:pose-stamped->pose xy)) poslist))
+             (setf poslist (append (list  (cl-transforms-stamped:pose-stamped->pose x-y)) poslist)))
+  (setf poslist (reverse poslist))
+  ;;(dotimes(test (length poslist))
+  ;;  do  ;;(format t "test4 ~a~%" (nth test poslist))
+    ;;(format t "test ~a~%" test)
+    ;;(publish-pose (nth test poslist) :id (+  test 100)))
+    ;;(format t "end of function~%"))
+  ;;  )
+    poslist))
