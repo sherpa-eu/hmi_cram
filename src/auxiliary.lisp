@@ -47,7 +47,7 @@
 ;; Get elements in front of the agent by specific type
 ;; @type: type of the object
 ;; 
-(defun get-front-elems-of-agent-by-type (type &optional (viewpoint "human"))
+(defun get-front-elems-of-agent-by-type (type &optional (viewpoint "busy-genius"))
   (let*((liste (get-front-elems-of-agent viewpoint))
         (resultlist '()))
     (dotimes (index (length liste))
@@ -92,7 +92,7 @@
              (setf tmp NIL))))
     tmp))
 
-(defun get-elems-in-tf (&optional (viewpoint "human"))
+(defun get-elems-in-tf (&optional (viewpoint "busy-genius"))
   (let* ((sem-map (sem-map-utils:get-semantic-map))
         (sem-hash (slot-value sem-map 'sem-map-utils:parts))
          (sem-keys (hash-table-keys sem-hash))
@@ -106,7 +106,7 @@
       (setf (gethash (nth index sem-keys) new-hash) obj-pose)))
 (copy-hash-table new-hash)))
 
-(defun get-elems-in-tf-agent (&optional (viewpoint "human"))
+(defun get-elems-in-tf-agent (&optional (viewpoint "busy-genius"))
   (let* ((sem-map (sem-map-utils:get-semantic-map))
          (sem-hash (slot-value sem-map 'sem-map-utils:parts))
          (sem-keys (hash-table-keys sem-hash))
@@ -134,6 +134,9 @@
                   ((search "rock" (slot-value (gethash name new-hash)
                                                         'cram-semantic-map-utils::type))
                    (setf type "rock"))
+                  ((search "pylon" (slot-value (gethash name new-hash)
+                                               'cram-semantic-map-utils::type))
+                   (setf type "pylon"))
                   (t (setf type (slot-value (gethash name new-hash)
                                                         'cram-semantic-map-utils::type))))))
    type))
@@ -211,9 +214,9 @@
         (all (append (append (append (append (append (append (append '() (list fsec)) (list forw2)) (list backw2)) (list right2)) (list left2)) (list up2)) (list down2)))
         (value NIL))
     (dotimes(index (length all))
-      (if (and (>= 2 (nth index all))
-               (null value))
-          (setf value T)))
+      (cond ((and (>= 2.0 (nth index all))
+                  (null value))
+             (setf value T))))
   value))
 
 
@@ -282,7 +285,7 @@
                (setf poses (append (list (format NIL"~a:~a" (nth index sem-keys) dist)) poses)))))
        (sort-list poses)))
 
-(defun get-front-elems-of-agent (&optional (viewpoint "human"))
+(defun get-front-elems-of-agent (&optional (viewpoint "busy-genius"))
   ;;(format t "get-elems-agent-front-by-dist~%")
   (setf *sem-map* (sem-map-utils:get-semantic-map))
   (let*((sem-hash (slot-value *sem-map* 'sem-map-utils:parts))
@@ -304,6 +307,17 @@
       (setf result (append (list (first (split-sequence:split-sequence #\: (nth index poses)))) result)))
     (reverse result)))
 
-(defun get-dist-of-elem-by-agent (name &optional (viewpoint "human"))
+(defun get-dist-of-elem-by-agent (name &optional (viewpoint "busy-genius"))
   (format NIL "~a:~a" name (get-distance (get-pose-by-elem name) (cl-transforms:transform->pose (cl-tf:lookup-transform *tf* "map" viewpoint)))))
 
+(defun get-elems-of-type (type)
+  (let*((sem-hash (slot-value *sem-map* 'sem-map-utils:parts))
+        (new-hash (copy-hash-table sem-hash))
+        (sem-keys (hash-table-keys new-hash))
+        (liste '()))
+    (dotimes(index (length sem-keys))
+      (if (string-equal type (get-type-by-elem (nth index sem-keys)))
+          (setf liste (append (list (nth index sem-keys)) liste))))
+    (format t "liste ~a~%"liste)
+    (reverse liste)))
+      
