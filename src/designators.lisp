@@ -28,210 +28,298 @@
 
 (in-package :hmi-cram)
 
-(defun create-desig-based-on-hmi-call (desigs)
-  (let ((action-list '()))
-    (loop for index being the elements of desigs
-          do(format t "tetetetetete ~a~%"(std_msgs-msg:data
-                               (hmi_interpreter-msg:action_type index))
-                              "go-there")
-              
 
-             (if (string-equal (std_msgs-msg:data
-                               (hmi_interpreter-msg:action_type index))
-                              "go-there")
-                (let((obj NIL)
-                     (loc_desig NIL)
-                     (action "go")
-                      (actor (std_msgs-msg:data
-                              (hmi_interpreter-msg:actor index)))
-                      (operator (std_msgs-msg:data
-                                 (hmi_interpreter-msg:instructor index)))
-                      (viewpoint (std_msgs-msg:data
-                                  (hmi_interpreter-msg:viewpoint index)))
-                     (propkeys (hmi_interpreter-msg:propkeys index)))
-                  (loop for jndex being the elements of propkeys
-                        do(let((pose NIL)
-                               (obj NIL)
-                               (spatial :to)
-                               (object
-                                 (std_msgs-msg:data
-                                  (hmi_interpreter-msg::object jndex)))
-                               (color
-                                 (std_msgs-msg:data
-                                  (hmi_interpreter-msg::object_color jndex)))
-                               (size
-                                 (std_msgs-msg:data
-                                  (hmi_interpreter-msg::object_size jndex)))
-                               (num
-                                 (std_msgs-msg:data
-                                  (hmi_interpreter-msg::object_num jndex)))
-                               (flag
-                                 (std_msgs-msg:data
-                                  (hmi_interpreter-msg::flag jndex))))
-                            (format t "tatatatata2 ~a~%" (geometry_msgs-msg:w
-                                                (geometry_msgs-msg:orientation
-                                                 (hmi_interpreter-msg:pointing_gesture jndex))))
-                            (format t "tatatatata2 ~a~%" (geometry_msgs-msg:x
-                                                (geometry_msgs-msg:orientation
-                                                 (hmi_interpreter-msg:pointing_gesture jndex))))
-                            (format t "tatatatata2 ~a~%" (geometry_msgs-msg:y
-                                                (geometry_msgs-msg:orientation
-                                                 (hmi_interpreter-msg:pointing_gesture jndex))))
-                            (format t "tatatatata2 ~a~%" (geometry_msgs-msg:z
-                                                (geometry_msgs-msg:orientation
-                                                 (hmi_interpreter-msg:pointing_gesture jndex))))
-                            (format t "tatatatata2 ~a~%" (geometry_msgs-msg:x
-                                                (geometry_msgs-msg:position
-                                                 (hmi_interpreter-msg:pointing_gesture jndex))))
-                            (format t "tatatatata2 ~a~%" (geometry_msgs-msg:y
-                                                (geometry_msgs-msg:position
-                                                 (hmi_interpreter-msg:pointing_gesture jndex))))
-                            (format t "tatatatata2 ~a~%" (geometry_msgs-msg:z
-                                                (geometry_msgs-msg:position
-                                                 (hmi_interpreter-msg:pointing_gesture jndex))))
-                            (setf pose (cl-transforms:make-pose 
-                                              (cl-transforms:make-3d-vector
-                                               (geometry_msgs-msg:x
-                                                (geometry_msgs-msg:position
-                                                 (hmi_interpreter-msg:pointing_gesture jndex)))
-                                               (geometry_msgs-msg:y
-                                                (geometry_msgs-msg:position
-                                                 (hmi_interpreter-msg:pointing_gesture jndex)))
-                                               (geometry_msgs-msg:z
-                                                (geometry_msgs-msg:position
-                                                 (hmi_interpreter-msg:pointing_gesture jndex))))
-                                              (cl-transforms:make-quaternion
-                                               (geometry_msgs-msg:x
-                                                (geometry_msgs-msg:orientation
-                                                 (hmi_interpreter-msg:pointing_gesture jndex)))
-                                               (geometry_msgs-msg:y
-                                                (geometry_msgs-msg:orientation
-                                                 (hmi_interpreter-msg:pointing_gesture jndex)))
-                                               (geometry_msgs-msg:z
-                                                (geometry_msgs-msg:orientation
-                                                 (hmi_interpreter-msg:pointing_gesture jndex)))
-                                               (geometry_msgs-msg:w
-                                                (geometry_msgs-msg:orientation
-                                                 (hmi_interpreter-msg:pointing_gesture jndex))))))
-                            (format t "tatatatata~%")
-                            (setf obj (give-pointed-direction pose))
-                  (setf loc_desig (make-designator :location `(((:to ,obj)))))
-                  (setf action-list (append action-list
-                                            (list (make-designator :action `((:type ,action)
-                                                                             (:actor ,actor)
-                                                                             (:operator ,operator)
-                                                                             (:viewpoint ,viewpoint)
-                                                                             (:goal ,loc_desig)))))))))
-                (let ((property-list NIL)
-                      (loc_desig NIL)
-                      (action (std_msgs-msg:data
-                               (hmi_interpreter-msg:action_type index)))
-                      (actor (std_msgs-msg:data
-                              (hmi_interpreter-msg:actor index)))
-                      (operator (std_msgs-msg:data
-                                 (hmi_interpreter-msg:instructor index)))
-                      (viewpoint (std_msgs-msg:data
-                                  (hmi_interpreter-msg:viewpoint index)))
-                      (propkeys (hmi_interpreter-msg:propkeys index)))
-                  (loop for jndex being the elements of propkeys
-                        do(let((pose NIL)
-                               (obj NIL)
-                               (spatial
-                                 (std_msgs-msg:data
-                                  (hmi_interpreter-msg::object_relation jndex)))
-                               (object
-                                 (std_msgs-msg:data
-                                  (hmi_interpreter-msg::object jndex)))
-                               (color
-                                 (std_msgs-msg:data
-                                  (hmi_interpreter-msg::object_color jndex)))
-                               (size
-                                 (std_msgs-msg:data
-                                  (hmi_interpreter-msg::object_size jndex)))
-                               (num
-                                 (std_msgs-msg:data
-                                  (hmi_interpreter-msg::object_num jndex)))
-                               (flag
-                                 (std_msgs-msg:data
-                                  (hmi_interpreter-msg::flag jndex))))
-                            (if (and (string-equal spatial "null")
-                                 (not (string-equal "null" object)))
-                                (setf spatial "ontop"))
-                            (format t "flag> ~a~%" flag)
-                            (cond((string-equal "true" flag)
-                                  (setf pose (cl-transforms:make-pose 
-                                              (cl-transforms:make-3d-vector
-                                               (geometry_msgs-msg:x
-                                                (geometry_msgs-msg:position
-                                                 (hmi_interpreter-msg:pointing_gesture jndex)))
-                                               (geometry_msgs-msg:y
-                                                (geometry_msgs-msg:position
-                                                 (hmi_interpreter-msg:pointing_gesture jndex)))
-                                               (geometry_msgs-msg:z
-                                                (geometry_msgs-msg:position
-                                                 (hmi_interpreter-msg:pointing_gesture jndex))))
-                                              (cl-transforms:make-quaternion
-                                               (geometry_msgs-msg:x
-                                                (geometry_msgs-msg:orientation
-                                                 (hmi_interpreter-msg:pointing_gesture jndex)))
-                                               (geometry_msgs-msg:y
-                                                (geometry_msgs-msg:orientation
-                                                 (hmi_interpreter-msg:pointing_gesture jndex)))
-                                               (geometry_msgs-msg:z
-                                                (geometry_msgs-msg:orientation
-                                                 (hmi_interpreter-msg:pointing_gesture jndex)))
-                                               (geometry_msgs-msg:w
-                                                (geometry_msgs-msg:orientation
-                                                 (hmi_interpreter-msg:pointing_gesture jndex))))))
-                                  (setf obj (get-pointed-elem-by-voice-type pose object viewpoint)))
-                                 (t (setf obj NIL)))
-                            (if (null obj)
-                                (setf obj object))
-                            (setf property-list (append (list  (list (list (set-keyword spatial) obj)
-                                                                     (list :color color)
-                                                                     (list :size size)
-                                                                     (list :num num))) property-list))))
-                  ;;(format t "property-list: ~a~%" (reverse property-list)) 
-                  (setf loc_desig (make-designator :location (reverse property-list)))
-                  (setf action-list (append action-list (list (make-designator :action `((:type ,action)
-                                                                                         (:actor ,actor)
-                                                                                         (:operator ,operator)
-                                                                                         (:viewpoint ,viewpoint)
-                                                                                         (:goal ,loc_desig)))))))))
+(defun go-there-function (index)
+  (format t "go there ~%")
+  (let((action-list '())
+       (loc_desig NIL)
+       (actor (std_msgs-msg:data
+               (hmi_interpreter-msg:actor index)))
+       (operator (std_msgs-msg:data
+                  (hmi_interpreter-msg:instructor index)))
+       (viewpoint (std_msgs-msg:data
+                   (hmi_interpreter-msg:viewpoint index)))
+       (propkeys (hmi_interpreter-msg:propkeys index)))
+    (loop for jndex being the elements of propkeys
+          do(let((pose NIL)
+                 (pointed-pose NIL))
+                  (format t "go tssshere123 ~a~%"(hmi_interpreter-msg:pointing_gesture jndex))
+              (setf pose (cl-transforms:make-pose 
+                          (cl-transforms:make-3d-vector
+                           (geometry_msgs-msg:x
+                            (geometry_msgs-msg:position
+                             (hmi_interpreter-msg:pointing_gesture jndex)))
+                           (geometry_msgs-msg:y
+                            (geometry_msgs-msg:position
+                             (hmi_interpreter-msg:pointing_gesture jndex)))
+                           (geometry_msgs-msg:z
+                            (geometry_msgs-msg:position
+                             (hmi_interpreter-msg:pointing_gesture jndex))))
+                          (cl-transforms:make-quaternion
+                           (geometry_msgs-msg:x
+                            (geometry_msgs-msg:orientation
+                             (hmi_interpreter-msg:pointing_gesture jndex)))
+                           (geometry_msgs-msg:y
+                            (geometry_msgs-msg:orientation
+                             (hmi_interpreter-msg:pointing_gesture jndex)))
+                           (geometry_msgs-msg:z
+                            (geometry_msgs-msg:orientation
+                             (hmi_interpreter-msg:pointing_gesture jndex)))
+                           (geometry_msgs-msg:w
+                            (geometry_msgs-msg:orientation
+                             (hmi_interpreter-msg:pointing_gesture jndex))))))
+              (format t "go there123 ~%")
+              (setf pointed-pose (cl-transforms:make-identity-pose)) ;;(give-pointed-direction pose))
+              (format t "go there1234 ~%")
+              (setf loc_desig (make-designator :location `((:pose ,pointed-pose))))
+              (format t "go there1235 ~%")
+              (setf action-list (append action-list
+                                        (list (make-designator :action `((:type ,(set-keyword "going")) 
+                                                                         (:actor ,actor)
+                                                                         (:operator ,(set-keyword operator))
+                                                                         (:viewpoint ,viewpoint)
+                                                                         (:goal ,loc_desig))))))))
+       (format t "go there12356 ~%")
+    action-list))
+
+
+(defun make-designator-with-adapted-actions (action actor operator viewpoint objname loc_desig)
+  (let((desig NIL))
+    (cond((string-equal "scan-lake-area" action)
+          (setf desig (list (make-designator :action `((:type ,(set-keyword "scanning"))
+                                                 (:actor ,actor)
+                                                 (:operator ,(set-keyword operator))
+                                                 (:viewpoint ,viewpoint)
+                                                 (:area "lake-area"))))))
+         ((string-equal "scan-bridge-area" action)
+          (setf desig (list (make-designator :action `((:type ,(set-keyword "scanning"))
+                                                 (:actor ,actor)
+                                                 (:operator ,(set-keyword operator))
+                                                 (:viewpoint ,viewpoint)
+                                                 (:area "bridge-area"))))))
+         ((string-equal "scan-tunnel-area" action)
+          (setf desig (list (make-designator :action `((:type ,(set-keyword "scanning"))
+                                                 (:actor ,actor)
+                                                 (:operator ,(set-keyword operator))
+                                                 (:viewpoint ,viewpoint)
+                                                 (:area "tunnel-area"))))))
+         ((string-equal "scan-forest-area" action)
+          (setf desig (list (make-designator :action `((:type ,(set-keyword "scanning"))
+                                                 (:actor ,actor)
+                                                 (:operator ,(set-keyword operator))
+                                                 (:viewpoint ,viewpoint)
+                                                 (:area "forest-area"))))))
+         ((string-equal "take-picture" action)
+          (setf desig (list (make-designator :action `((:type ,(set-keyword "taking-picture"))
+                                                 (:actor ,actor)
+                                                 (:operator ,(set-keyword operator))
+                                                 (:viewpoint ,viewpoint))))))
+         ((string-equal "show-picture" action)
+          (setf desig (list (make-designator :action `((:type ,(set-keyword "showing-picture"))
+                                                 (:actor ,actor)
+                                                 (:operator ,(set-keyword operator))
+                                                 (:viewpoint ,viewpoint))))))
+         ((string-equal "come-back" action)
+          (setf desig (list (make-designator :action `((:type ,(set-keyword "going"))
+                                                       (:actor ,actor)
+                                                       (:operator ,(set-keyword operator))
+                                                       (:viewpoint ,viewpoint)
+                                                       (:to ,(make-designator :location `((:next-to "busy-genius"))))))
+                            (make-designator :action `((:type ,(set-keyword "landing"))
+                                                       (:actor ,actor)
+                                                       (:operator ,(set-keyword operator))
+                                                       (:viewpoint ,viewpoint))))))
+         ((or (string-equal "look-for" action)
+              (string-equal "search-for" action))
+          (setf desig (list (make-designator :action `((:type ,(set-keyword "looking-for"))
+                                                       (:actor ,actor)
+                                                       (:operator ,(set-keyword operator))
+                                                       (:viewpoint ,viewpoint)
+                                                       (:obj ,objname))))))
+         ((or (string-equal "take-off" action)
+              (string-equal "land" action))
+          (setf desig (list (make-designator :action `((:type ,(set-keyword "landing"))
+                                                 (:actor ,actor)
+                                                 (:operator ,(set-keyword operator))
+                                                 (:viewpoint ,viewpoint))))))
+          ((string-equal "mount" action)
+          (setf desig (list (make-designator :action `((:type ,(set-keyword "mounting"))
+                                                       (:actor ,actor)
+                                                       (:operator ,(set-keyword operator))
+                                                       (:viewpoint ,viewpoint)
+                                                       (:obj ,objname))))))
+          ((string-equal "stop" action)
+           (setf desig (list (make-designator :action `((:type ,(set-keyword "stopping"))
+                                                        (:actor ,actor)
+                                                        (:operator ,(set-keyword operator))
+                                                        (:viewpoint ,viewpoint))))))
+          (t (setf desig (list (make-designator :action `((:type ,(set-keyword (format NIL "~aing" action)))
+                                                          (:actor ,actor)
+                                                          (:operator ,(set-keyword operator))
+                                                          (:viewpoint ,viewpoint)
+                                                          (:goal ,loc_desig)))))))
+    desig))
+
+(defun create-desig-based-on-hmi-call (desigs)
+  (format t "~a~%" desigs)
+  (let ((action-list '())
+        (act-list '())
+        (flist NIL))
+    (loop for index being the elements of desigs
+          do (if (string-equal "go-there" (std_msgs-msg:data
+                                           (hmi_interpreter-msg:action_type index)))
+                 (setf action-list (append action-list (go-there-function index)))
+                 (setf action-list (append action-list (various-commands-function index)))))
+     (format t "action-list ~a~%" action-list)
+    (dotimes (index (length action-list))
+      (let((pose NIL))  
+      (cond((and (not (null (desig-prop-value (nth index action-list) :goal)))
+                 (null (desig-prop-value (desig-prop-value (nth index action-list) :goal) :pose)))
+            (setf flist (first (first (desig:properties (desig-prop-value (nth index action-list) :goal)))))
+            (cond((string-equal (second flist) "null")
+                   (format t "index ~a~%" (nth index action-list))
+                  (setf pose (cl-transforms:make-identity-pose));; (calculate-relation-by-agent-pose (desig-prop-value index :viewpoint)
+                                 ;; (first flist))
+                   (format t "index123 ~a~%" (nth index action-list))
+                  (setf act-list (append act-list
+                                  (list
+                                   (make-designator :action `((:type ,(desig-prop-value (nth index action-list) :type))
+                                                          (:actor ,(desig-prop-value (nth index action-list) :actor))
+                                                          (:operator ,(desig-prop-value (nth index action-list) :operator))
+                                                          (:viewpoint ,(desig-prop-value (nth index action-list) :viewpoint))
+                                                          (:goal
+                                                           ,(make-designator :location `((:pose ,pose)))))))))
+
+                  (format t "index456 ~a~%" (nth index action-list)))
+                 (t (setf act-list (append act-list (list (nth index action-list))))))
+            (format t "indexxdasdsad ~a~%" act-list))
+           (t (setf act-list (append act-list (list (nth index action-list))))))))
+    (setf action-list act-list)
+    (format t "action-list ~a~%" action-list)
+    action-list))
+
+(defun various-commands-function (index)
+  (let ((action-list '())
+         (property-list NIL)
+         (loc_desig NIL)
+         (action (std_msgs-msg:data
+                  (hmi_interpreter-msg:action_type index)))
+         (actor (std_msgs-msg:data
+                 (hmi_interpreter-msg:actor index)))
+         (operator (std_msgs-msg:data
+                    (hmi_interpreter-msg:instructor index)))
+         (viewpoint (std_msgs-msg:data
+                     (hmi_interpreter-msg:viewpoint index)))
+        (obj NIL)
+        (propkeys (hmi_interpreter-msg:propkeys index)))
+    (loop for jndex being the elements of propkeys
+          do(let((pose NIL)
+                 (spatial
+                   (std_msgs-msg:data
+                    (hmi_interpreter-msg::object_relation jndex)))
+                 (object
+                   (std_msgs-msg:data
+                    (hmi_interpreter-msg::object jndex)))
+                 (color
+                   (std_msgs-msg:data
+                    (hmi_interpreter-msg::object_color jndex)))
+                 (size
+                   (std_msgs-msg:data
+                    (hmi_interpreter-msg::object_size jndex)))
+                 (num
+                   (std_msgs-msg:data
+                    (hmi_interpreter-msg::object_num jndex)))
+                 (flag
+                   (std_msgs-msg:data
+                    (hmi_interpreter-msg::flag jndex))))
+              (cond((string-equal "true" flag)
+                    (setf pose (cl-transforms:make-pose 
+                                (cl-transforms:make-3d-vector
+                                 (geometry_msgs-msg:x
+                                  (geometry_msgs-msg:position
+                                   (hmi_interpreter-msg:pointing_gesture jndex)))
+                                 (geometry_msgs-msg:y
+                                  (geometry_msgs-msg:position
+                                   (hmi_interpreter-msg:pointing_gesture jndex)))
+                                 (geometry_msgs-msg:z
+                                  (geometry_msgs-msg:position
+                                  (hmi_interpreter-msg:pointing_gesture jndex))))
+                                (cl-transforms:make-quaternion
+                                 (geometry_msgs-msg:x
+                                  (geometry_msgs-msg:orientation
+                                   (hmi_interpreter-msg:pointing_gesture jndex)))
+                                 (geometry_msgs-msg:y
+                                  (geometry_msgs-msg:orientation
+                                   (hmi_interpreter-msg:pointing_gesture jndex)))
+                                 (geometry_msgs-msg:z
+                                  (geometry_msgs-msg:orientation
+                                   (hmi_interpreter-msg:pointing_gesture jndex)))
+                                 (geometry_msgs-msg:w
+                                  (geometry_msgs-msg:orientation
+                                   (hmi_interpreter-msg:pointing_gesture jndex))))))
+                    (setf obj (get-pointed-elem-by-voice-type pose object viewpoint)))
+                   (t (setf obj NIL)))
+              (if (null obj)
+                  (setf obj object))
+              (if (string-equal spatial "to")
+                  (setf spatial "next-to"))
+              (setf property-list (append (list  (list (list (set-keyword spatial) obj)
+                                                       (list :color color)
+                                                       (list :size size)
+                                                       (list :num num))) property-list))))
+    (setf loc_desig (make-designator :location (reverse property-list)))
+    (setf action-list (append action-list (make-designator-with-adapted-actions action
+                                                                                actor
+                                                                                operator
+                                                                                viewpoint
+                                                                                obj
+                                                                                loc_desig)))
     action-list))
 
 (defun add-semantic-to-desigs (viewpoint desig)
-  (format t "add to desigs semantic desig ~a~%"desig)
-  (let* ((goal (desig-prop-value desig :goal))(felem NIL)(tmpproplist '())
-         (proplist (desig:properties goal)))
-    (cond ((= 1 (length proplist))
-           (if (equal (type-of (second (first (first (last proplist))))) 'cl-transforms:pose)
-               (setf tmpproplist (append tmpproplist (list (list (first (first (first (last proplist))))
-                                                            (second (first (first (last proplist))))))))      
-               (cond ((not (null (get-pose-by-elem (second (first (first (last proplist))))))) ;;name
-                      (format t "teeeeeeeest123------------~%")
-                      (setf felem (second (first (first (last proplist)))))
-                      (setf tmpproplist (append tmpproplist (list (list (first (first (first (last proplist))))
-                                                                        felem)))))
-                     ((and (null (get-pose-by-elem (second (first (first proplist))))) ;;;not-name
-                                   (and (or (not (null (second (first (first proplist))))) ;;not NIL
-                                            (not (string-equal "null" (second (first (first proplist))))))
-                                        (and (not (null (second (first (first proplist))))) ;;not NIL
-                                             (not (string-equal "null" (second (first (first proplist))))))))
-                      (format t "teeeeeeeest345------------~%")
-                      (setf felem  (first (get-front-elems-of-agent-by-type
-                                           (second (first (first proplist))) viewpoint)))
-                      (setf tmpproplist (append tmpproplist (list (list (first (first (first (last proplist))))
-                                                                        felem)))))                 (t (format t "teeeeeeeest----------910911--~%") (setf tmpproplist (append tmpproplist (list (list (first (first (first (last proplist))))
-                                                                    felem))))))))
-          ((= 2 (length proplist))
-           (setf tmpproplist (add-semantics-two-desigs proplist viewpoint))))
-    (format t "tetetetetetest ~a~%" (desig-prop-value desig :type))
-    (make-designator :action `((:action_type ,(desig-prop-value desig :type))
-                               (:actor ,(desig-prop-value desig :actor))
-                               (:operator ,(desig-prop-value desig :operator))
-                               (:viewpoint ,(desig-prop-value desig :viewpoint))
-                               (:goal ,(make-designator :location tmpproplist))))))
+    (format t "add-semantic-to-desigs~%")
+  (cond((not (null (desig-prop-value desig :to)))
+        (setf desig (make-designator :action `((:type ,(desig-prop-value desig :type))
+                                               (:actor ,(desig-prop-value desig :actor))
+                                               (:operator ,(desig-prop-value desig :operator))
+                                               (:viewpoint ,(desig-prop-value desig :viewpoint))
+                                               (:goal ,(desig-prop-value desig :to))))))
+       ((and (not (null (desig-prop-value desig :goal)))
+             (not (null (desig-prop-value (desig-prop-value desig :goal) :pose))))
+        (setf desig desig))
+        ((not (null (desig-prop-value desig :obj)))
+         (setf desig desig))
+       ((not (null (desig-prop-value desig :goal)))
+        (let* ((goal (desig-prop-value desig :goal))(felem NIL)(tmpproplist '())
+                   (proplist (desig:properties goal)))
+              (format t "goal ~a~%" goal)
+              (cond ((= 1 (length proplist))
+                     (if (equal (type-of (second (first (first (last proplist))))) 'cl-transforms:pose)
+                         (setf tmpproplist (append tmpproplist (list (list (first (first (first (last proplist))))
+                                                                           (second (first (first (last proplist))))))))      
+                         (cond ((not (null (get-pose-by-elem (second (first (first (last proplist))))))) ;;name
+                                (setf felem (second (first (first (last proplist)))))
+                                (setf tmpproplist (append tmpproplist (list (list (first (first (first (last proplist))))
+                                                                                  felem)))))
+                               ((and (null (get-pose-by-elem (second (first (first proplist))))) ;;;not-name
+                                     (and (or (not (null (second (first (first proplist))))) ;;not NIL
+                                              (not (string-equal "null" (second (first (first proplist))))))
+                                          (and (not (null (second (first (first proplist))))) ;;not NIL
+                                               (not (string-equal "null" (second (first (first proplist))))))))
+                                (setf felem  (first (get-front-elems-of-agent-by-type
+                                                     (second (first (first proplist))) viewpoint)))
+                                (setf tmpproplist (append tmpproplist (list (list (first (first (first (last proplist))))
+                                                                                  felem)))))
+                               (t (setf tmpproplist (append tmpproplist (list (list (first (first (first (last proplist))))
+                                                                                    felem))))))))
+                    ((= 2 (length proplist))
+                     (setf tmpproplist (add-semantics-two-desigs proplist viewpoint))))
+              (setf desig (make-designator :action `((:type ,(desig-prop-value desig :type))
+                                                     (:actor ,(desig-prop-value desig :actor))
+                                                     (:operator ,(desig-prop-value desig :operator))
+                                                     (:viewpoint ,(desig-prop-value desig :viewpoint))
+                                                     (:goal ,(make-designator :location tmpproplist))))))))
+  desig)
 
 (defun add-semantics-two-desigs  (proplist viewpoint)
   (let*((list2 (first (last proplist)))

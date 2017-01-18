@@ -43,6 +43,16 @@
                (format t "")))
    pose))
 
+(defun get-bbox-by-elem (objname)
+ (let*((bbox NIL)
+       (sem-hash (slot-value *sem-map* 'sem-map-utils:parts))
+       (new-hash (copy-hash-table sem-hash))
+       (sem-keys (hash-table-keys sem-hash)))
+       (dotimes (i (length sem-keys))
+         do(if (string-equal objname (nth i sem-keys))
+               (setf bbox (slot-value (gethash objname new-hash) 'sem-map-utils:dimensions))
+               (format t "")))
+   bbox))
 ;;
 ;; Get elements in front of the agent by specific type
 ;; @type: type of the object
@@ -321,3 +331,64 @@
     (format t "liste ~a~%"liste)
     (reverse liste)))
       
+(defun publish-box (pose vector &key id)
+  (setf *marker-publisher*
+        (roslisp:advertise "~location_marker" "visualization_msgs/Marker"))
+   (let ((point (cl-transforms:origin pose))
+        (rot (cl-transforms:orientation pose))
+        (current-index 0))
+    (when *marker-publisher*
+      (roslisp:publish *marker-publisher*
+               (roslisp:make-message "visualization_msgs/Marker"
+                             (stamp header) (roslisp:ros-time)
+                             (frame_id header)
+                             (typecase pose
+                               (cl-transforms-stamped:pose-stamped (cl-transforms-stamped:frame-id pose))
+                               (t cram-tf:*fixed-frame*))
+                             ns "kipla_locations"
+                             id (or id (incf current-index))
+                             type (roslisp:symbol-code
+                                   'visualization_msgs-msg:<marker> :cube)
+                             action (roslisp:symbol-code
+                                     'visualization_msgs-msg:<marker> :add)
+                             (x position pose) (cl-transforms:x point)
+                             (y position pose) (cl-transforms:y point)
+                             (z position pose) (cl-transforms:z point)
+                             (x orientation pose) (cl-transforms:x rot)
+                             (y orientation pose) (cl-transforms:y rot)
+                             (z orientation pose) (cl-transforms:z rot)
+                             (w orientation pose) (cl-transforms:w rot)
+                             (x scale) (cl-transforms:x vector)
+                             (y scale) (cl-transforms:y vector)
+                             (z scale) (cl-transforms:z vector)
+                             (r color) 1.0
+                             (g color) 1.0
+                             (b color) 0.0
+                             (a color) 1.0)))))
+
+(defun calculate-relation-by-agent-pose (viewpoint relation)
+  (let* ((pose (cl-transforms:transform->pose  (cl-tf:lookup-transform *tf* "map" viewpoint)))
+         (result NIL))
+    (cl-tf:set-transform *tf*
+                         (cl-transforms-stamped:make-transform-stamped
+                          "map" "relation"
+                          (roslisp:ros-time)
+                          (cl-transforms:origin pose)
+                          (cl-transforms:orientation pose)))
+    (cond((string-equal "right" relation)
+          (setf pose (cl-transforms-stamped:make-pose-stamped "relation" 0.0
+                                                          (cl-transforms:make-3d-vector 0 -7 0)
+                                                          (cl-transforms:make-identity-rotation)))
+          (setf result (cl-transforms-stamped:pose-stamped->pose (cl-tf:transform-pose *tf* :pose pose :target-frame "map"))))
+         ((string-equal "left" relation)
+          (setf pose (cl-transforms-stamped:make-pose-stamped "relation" 0.0
+                                                          (cl-transforms:make-3d-vector 0 7 0)
+                                                          (cl-transforms:make-identity-rotation)))
+          (setf result (cl-transforms-stamped:pose-stamped->pose (cl-tf:transform-pose *tf* :pose pose :target-frame "map"))))
+         ((string-equal "straight" relation)
+          (setf pose (cl-transforms-stamped:make-pose-stamped "relation" 0.0
+                                                          (cl-transforms:make-3d-vector 7 0 0)
+                                                          (cl-transforms:make-identity-rotation)))
+          (setf result (cl-tf:transform-pose *tf* :pose pose :target-frame "map"))))
+    (publish-pose (cl-transforms-stamped:pose-stamped->pose result) :id 100)
+    result))
