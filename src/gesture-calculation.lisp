@@ -28,7 +28,7 @@
 
 (in-package :hmi-cram)
 
-(defun get-pointed-elem-by-voice-type (pose type &optional (viewpoint "busy-genius"))
+(defun get-pointed-elem-by-voice-type (pose type &optional (viewpoint "busy_genius"))
   (format t "get-pointed-elem-by-voice-type~%")
   (let ((poses-liste (calculate-ray pose))
         (agent-elem (get-front-elems-of-agent viewpoint)) ;;(get-elems-of-type type)
