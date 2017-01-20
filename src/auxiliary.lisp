@@ -33,6 +33,8 @@
 ;; @objname: object name of the element
 ;;
 (defun get-pose-by-elem (objname)
+  (if (null *sem-map*)
+      (setf *sem-map* (sem-map-utils:get-semantic-map)))
  (let*((pose NIL)
        (sem-hash (slot-value *sem-map* 'sem-map-utils:parts))
        (new-hash (copy-hash-table sem-hash))
@@ -96,10 +98,12 @@
              (setf tmp NIL)))
         ((or (string-equal property "to")
               (string-equal property "around")
+              (string-equal property "next-to")
               (string-equal property "next"))
+         
          (if (>= 20 (get-distance obj1-pose obj2-pose))
              (setf tmp T)
-             (setf tmp NIL))))
+             (setf tmp NIL))))        
     tmp))
 
 (defun get-elems-in-tf (&optional (viewpoint "busy_genius"))
@@ -179,26 +183,64 @@
                                                         'cram-semantic-map-utils::type))))))
    type))
 
-;;
 ;; Get next element based on previous element without
 ;; any conditions
 ;; @typ: element type
 ;; @spatial: spatial relation of the elements
 ;; @name: element name
 ;;
-(defun get-next-elem-by-prev-elem (type spatial name)
+(defun get-prev-elem-based-on-next-elem (type spatial name)
+  (format t "get-prev-elem ~a ~a ~a~%"type spatial name)
   (let*((liste (get-front-elems-of-agent-by-type type))
         (resultlist '()))
-  ;;  (format t "~a~%" liste)
+    (format t "liste ~a~%" liste)
     (dotimes (index (length liste))
-      (if (not (null (check-elems-by-relation->get-elems-in-tf
-                      name (nth index liste) spatial)))
-          (setf resultlist (append resultlist (list 
+      (if  (not (null (check-elems-by-relation->get-elems-in-tf
+                           (nth index liste) name  spatial)))
+            (setf resultlist (append resultlist (list 
                                                (format NIL "~a:~a"(nth index liste)                                                       (get-distance
                                                         (get-pose-by-elem
                                                          (nth index liste))
                                                         (get-pose-by-elem name))))))))
+    (if (null resultlist)
+        (setf resultlist (get-elems-around liste "around" name)))
     (sort-list resultlist)))
+
+;; Get next element based on previous element without
+;; any conditions
+;; @typ: element type
+;; @spatial: spatial relation of the elements
+;; @name: element name
+;;
+(defun get-next-elem-based-on-prev-elem (type spatial name)
+  (format t "get-next-elem ~a ~a ~a~%"type spatial name)
+  (let*((liste (get-front-elems-of-agent-by-type type))
+        (resultlist '()))
+     (format t "liste ~a~%" liste)
+    (dotimes (index (length liste))
+      (if  (not (null (check-elems-by-relation->get-elems-in-tf
+                           name (nth index liste)  spatial)))
+            (setf resultlist (append resultlist (list 
+                                               (format NIL "~a:~a"(nth index liste)                                                       (get-distance
+                                                        (get-pose-by-elem
+                                                         (nth index liste))
+                                                        (get-pose-by-elem name))))))))
+    (if (null resultlist)
+        (setf resultlist (get-elems-around liste "around" name)))
+    (sort-list resultlist)))
+
+(defun get-elems-around (liste spatial name)
+  (let((resultlist '()))
+    (format t "liste ~a~%" liste)
+    (dotimes (index (length liste))
+      (if  (not (null (check-elems-by-relation->get-elems-in-tf
+                           name (nth index liste) spatial)))
+            (setf resultlist (append resultlist (list 
+                                               (format NIL "~a:~a"(nth index liste)                                                       (get-distance
+                                                        (get-pose-by-elem
+                                                         (nth index liste))
+                                                        (get-pose-by-elem name))))))))
+    resultlist))
 
 (defun set-keyword (string)
   (intern (string-upcase string) "KEYWORD"))
