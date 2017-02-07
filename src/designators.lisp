@@ -30,7 +30,7 @@
 
 
 (defun go-there-function (index)
-  ;;(format t "go there ~%")
+  (format t "go there ~%")
   (let((action-list '())
        (loc_desig NIL)
        (actor (std_msgs-msg:data
@@ -69,7 +69,7 @@
                             (geometry_msgs-msg:orientation
                              (hmi_interpreter-msg:pointing_gesture jndex))))))
               ;;(format t "go there123 ~%")
-              (setf pointed-pose (cl-transforms:make-identity-pose)) ;;(give-pointed-direction pose))
+              (setf pointed-pose (give-pointed-direction pose))
               ;;(format t "go there1234 ~%")
               (setf loc_desig (make-designator :location `((:pose ,pointed-pose))))
               ;;(format t "go there1235 ~%")
@@ -143,7 +143,7 @@
     desig))
 
 (defun create-desig-based-on-hmi-call (desigs)
-  ;;(format t "~a~%" desigs)
+  (format t "[(CRAM-CREATE-DESIG) INFO] DESIG: ~a~%" desigs)
   (let ((action-list '())
         (act-list '())
 	(actor NIL)
@@ -176,13 +176,14 @@
                                                           (:destination
                                                            ,(make-designator :location `((:viewpoint ,(desig-prop-value (nth index action-list) :viewpoint))
                                                                                          (:pose ,pose)))))))))
+                  (publish-pose pose :id 3223)
 
                   );;(format t "index456 ~a~%" (nth index action-list)))
                  (t (setf act-list (append act-list (list (nth index action-list))))))
             );;(format t "indexxdasdsad ~a~%" act-list))
            (t (setf act-list (append act-list (list (nth index action-list))))))))
     (setf action-list act-list)
-    ;;(format t "action-list ~a~%" action-list)
+   ;; (format t "action-list ~a~%" action-list)
     action-list))
 
 (defun various-commands-function (index)
@@ -267,7 +268,8 @@
     action-list))
 
 (defun add-semantic-to-desigs (viewpoint desig)
-   ;;(format t "add-semantic-to-desigs ~a~%" desig)
+ 
+  (setf actor NIL)
   (cond((and ;;(null (desig-prop-value desig :to))
              (null (desig-prop-value desig :destination))
              (null (desig-prop-value desig :area))
@@ -275,12 +277,6 @@
              (null (desig-prop-value desig :agent)))
        ;; (format t "nix~%")
         (setf desig desig))
-    ;; ((not (null (desig-prop-value desig :to)))
-    ;;     (setf desig (make-designator :action `((:to ,(desig-prop-value desig :to))
-    ;;                                            (:actor ,(desig-prop-value desig :actor))
-    ;;                                            (:operator ,(desig-prop-value desig :operator))
-    ;;                                          ;;  (:viewpoint ,(desig-prop-value desig :viewpoint))
-    ;;                                            (:goal ,(desig-prop-value desig :to))))))
        ((and (not (null (desig-prop-value desig :destination)))
              (not (null (desig-prop-value (desig-prop-value desig :destination) :pose))))
         (setf desig desig))
@@ -291,7 +287,7 @@
        ((not (null (desig-prop-value desig :destination)))
         (let* ((goal (desig-prop-value desig :destination))(felem NIL)(tmpproplist '())
                    (proplist (desig:properties goal)))
-              ;;(format t "goal123 ~a~%" goal)
+          ;;(format t "goal123 ~a~%" goal)
               (cond ((= 1 (length proplist))
                      (if (equal (type-of (second (first (first (last proplist))))) ;;((:spatial "object")...)
                                 'cl-transforms:pose) ;;if object type of pose
@@ -309,8 +305,9 @@
                                               (not (string-equal "null" (second (first (first proplist)))))) ;; if obj is not "null"
                                           (and (not (null (second (first (first proplist))))) ;;if obj is not NIL and
                                                (not (string-equal "null" (second (first (first proplist)))))))) ;; if obj is not "null"
-                                (setf felem  (first (get-front-elems-of-agent-by-type
+                                (setf felem  (first (get-all-elems-front-agent-by-type
                                                      (second (first (first proplist))) viewpoint)))
+                            ;;    (format t "felem: ~a~%" felem)
                                 (setf tmpproplist (append tmpproplist
                                                           (list (list (first (first (first (last proplist))))
                                                                       felem)))))
@@ -320,13 +317,16 @@
                     ((= 2 (length proplist))
                      (setf tmpproplist (add-semantics-two-desigs proplist viewpoint))))
           (setf tmpproplist (append (list (list :viewpoint (desig-prop-value desig :viewpoint))) tmpproplist))
-	  (if (not (string-equal "robot" (desig-prop-value desig :actor)))
-	      (setf actor (desig-prop-value desig :actor))
-	      (setf actor NIL))
+         ;; (format t "tmpproplist ~a~%" tmpproplist)
+          
+	  (if (or (not (string-equal "robot" (desig-prop-value desig :actor)))
+            (not (null (desig-prop-value desig :actor))))
+	      (setf actor (desig-prop-value desig :actor)))
               (setf desig (make-designator :action `((:to ,(desig-prop-value desig :to))
                                                      (:actor ,actor)
                                                      (:operator ,(desig-prop-value desig :operator))
                                                      (:destination ,(make-designator :location tmpproplist))))))))
+ ;; (format t "print desig ~a~%" desig)
   desig)
 
 (defun add-semantics-two-desigs  (proplist viewpoint)
@@ -337,10 +337,10 @@
         (tmpproplist '())
         (dist 10)
         (selem NIL)(felem NIL))
-    (format t "teest ~a~%"  (second (first list1)))
+   ;; (format t "teest ~a~%"  (second (first list1)))
           (cond((and (null (get-pose-by-elem (second (first list1)))) ;;type
                      (null (get-pose-by-elem (second (first list2))))) ;;type
-             (format t "~a~% ~a~%" (second (first list2)) (first (first list1)))
+            ;; (format t "~a~% ~a~%" (second (first list2)) (first (first list1)))
                 (dotimes (index (length typelist1))
 		  (let((tmp (get-next-elem-based-on-prev-elem 
                                    (second (first list2))

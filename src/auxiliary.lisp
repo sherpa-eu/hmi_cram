@@ -28,6 +28,12 @@
 
 (in-package :hmi-cram)
 
+(defun tf-busy-genius-to-map ()
+  (let ((var (cl-transforms:transform->pose (cl-tf:lookup-transform *tf* "map" "busy_genius"))))
+    (publish-pose var :id 100000000 :zet 0.0)
+   ;; (format t "pose busy_genius to map ~a~%" var)
+    var))
+
 ;;
 ;; Get the position of the element out of semantic map
 ;; @objname: object name of the element
@@ -52,23 +58,47 @@
        (sem-keys (hash-table-keys sem-hash)))
        (dotimes (i (length sem-keys))
          do(if (string-equal objname (nth i sem-keys))
-               (setf bbox (slot-value (gethash objname new-hash) 'sem-map-utils:dimensions))
-               (format t "")))
-   bbox))
+               (setf bbox (slot-value (gethash objname new-hash) 'sem-map-utils:dimensions))))
+      bbox))
 ;;
 ;; Get elements in front of the agent by specific type
 ;; @type: type of the object
 ;; 
-(defun get-front-elems-of-agent-by-type (type &optional (viewpoint "busy_genius"))
-  (let*((liste (get-front-elems-of-agent viewpoint))
-        (resultlist '()))
-    (dotimes (index (length liste))
-      (if(string-equal type
-                       (get-type-by-elem (nth index liste)))
-         (setf resultlist (append resultlist (list (nth index liste))))))
-    resultlist))
+;; (defun get-front-elems-of-agent-by-type (type &optional (viewpoint "busy_genius"))  
+;;   (format t "get-front-elems-by-type~%")
+;;   (let*((liste (get-front-elems-of-agent viewpoint))
+;;         (resultlist '()))
+;;     (dotimes (index (length liste))
+;;       (if(string-equal type
+;;                        (get-type-by-elem (nth index liste)))
+;;          (setf resultlist (append resultlist (list (nth index liste))))))
+;;     (dotimes (jndex (length resultlist))
+;;       (publish-pose (get-pose-by-elem (nth jndex resultlist)) :id (+ jndex 9239874398274) :zet 0.0))
+;;     (format t "~a~%" resultlist)
+;;     resultlist))
+ (defun get-all-elems-front-agent-by-type (type viewpoint)
+ ;;  (format t "get-all-elems-by-type~%")
+   (if (null *sem-map*)
+       (setf *sem-map* (sem-map-utils:get-semantic-map)))
+     ;;(format t "get-front-elems-by-type123~%")
+   (let*((sem-hash (slot-value *sem-map* 'sem-map-utils:parts))
+         (sem-keys (hash-table-keys sem-hash))
+         (new-hash (make-hash-table))
+         (poses '())
+         (human-pose (tf-busy-genius-to-map)))
+     (dotimes (index (length sem-keys))
+       (cond((and (string-equal type (get-type-by-elem (nth index sem-keys)))
+                  (check-elems-infront-agent (nth index sem-keys) viewpoint))
+           (setf poses (append (list (format NIL "~a:~a" (nth index sem-keys)
+                                             (get-distance human-pose
+                                                           (get-pose-by-elem
+                                                            (nth index sem-keys)))))
+                                                                             poses)))))
+     (setf poses (sort-list poses))
+  ;;  (format t "~a~%" poses)
+    (list (first  (split-sequence:split-sequence #\: (car poses))))))
 
-                      
+
 ;; Checking the relation of the objects. See if obj1 satisfy the
 ;; property towards obj2 or so... 
 (defun check-elems-by-relation->get-elems-in-tf (objname1 objname2 property)
@@ -107,7 +137,9 @@
     tmp))
 
 (defun get-elems-in-tf (&optional (viewpoint "busy_genius"))
-  (let* ((sem-map (sem-map-utils:get-semantic-map))
+  (if (null *sem-map*)
+      (setf *sem-map* (sem-map-utils:get-semantic-map)))
+  (let* ((sem-map *sem-map*)
         (sem-hash (slot-value sem-map 'sem-map-utils:parts))
          (sem-keys (hash-table-keys sem-hash))
        ;;  (semm-hash (copy-hash-table sem-hash))
@@ -150,35 +182,35 @@
                                                         'cram-semantic-map-utils::type))
                        (search "Tree" (slot-value (gethash name new-hash)
                                                         'cram-semantic-map-utils::type)))
-                   (setf type "tree"))
+                   (setf type "Tree"))
                   ((or (search "rock" (slot-value (gethash name new-hash)
                                                         'cram-semantic-map-utils::type))
                        (search "Rock" (slot-value (gethash name new-hash)
                                                   'cram-semantic-map-utils::type)))
-                   (setf type "rock"))
+                   (setf type "Rock"))
                   ((or (search "lake" (slot-value (gethash name new-hash)
                                                         'cram-semantic-map-utils::type))
                        (search "Lake" (slot-value (gethash name new-hash)
                                                         'cram-semantic-map-utils::type)))
-                   (setf type "lake"))
+                   (setf type "Lake"))
                   ((or (search "tunnel" (slot-value (gethash name new-hash)
                                                         'cram-semantic-map-utils::type))
                        (search "Tunnel" (slot-value (gethash name new-hash)
                                                         'cram-semantic-map-utils::type)))
-                   (setf type "tunnel"))
+                   (setf type "Tunnel"))
                   ((or (search "Cottage" (slot-value (gethash name new-hash)
                                                         'cram-semantic-map-utils::type))
-                       (search "cottage" (slot-value (gethash name new-hash)
+                       (search "Cottage" (slot-value (gethash name new-hash)
                                                         'cram-semantic-map-utils::type)))
                    (setf type "Cottage"))
                   ((or (search "bridge" (slot-value (gethash name new-hash)
                                                         'cram-semantic-map-utils::type))
                        (search "Bridge" (slot-value (gethash name new-hash)
                                                         'cram-semantic-map-utils::type)))
-                   (setf type "bridge"))
+                   (setf type "Bridge"))
                   ((search "pylon" (slot-value (gethash name new-hash)
                                                'cram-semantic-map-utils::type))
-                   (setf type "pylon"))
+                   (setf type "Pylon"))
                   (t (setf type (slot-value (gethash name new-hash)
                                                         'cram-semantic-map-utils::type))))))
    type))
@@ -190,10 +222,10 @@
 ;; @name: element name
 ;;
 (defun get-prev-elem-based-on-next-elem (type spatial name)
-  (format t "get-prev-elem ~a ~a ~a~%"type spatial name)
+  ;;(format t "get-prev-elem ~a ~a ~a~%"type spatial name)
   (let*((liste (get-front-elems-of-agent-by-type type))
         (resultlist '()))
-    (format t "liste ~a~%" liste)
+    ;;(format t "liste ~a~%" liste)
     (dotimes (index (length liste))
       (if  (not (null (check-elems-by-relation->get-elems-in-tf
                            (nth index liste) name  spatial)))
@@ -213,10 +245,10 @@
 ;; @name: element name
 ;;
 (defun get-next-elem-based-on-prev-elem (type spatial name)
-  (format t "get-next-elem ~a ~a ~a~%"type spatial name)
+  ;;(format t "get-next-elem ~a ~a ~a~%"type spatial name)
   (let*((liste (get-front-elems-of-agent-by-type type))
         (resultlist '()))
-     (format t "liste ~a~%" liste)
+     ;;(format t "liste ~a~%" liste)
     (dotimes (index (length liste))
       (if  (not (null (check-elems-by-relation->get-elems-in-tf
                            name (nth index liste)  spatial)))
@@ -231,7 +263,7 @@
 
 (defun get-elems-around (liste spatial name)
   (let((resultlist '()))
-    (format t "liste ~a~%" liste)
+    ;;(format t "liste ~a~%" liste)
     (dotimes (index (length liste))
       (if  (not (null (check-elems-by-relation->get-elems-in-tf
                            name (nth index liste) spatial)))
@@ -367,16 +399,39 @@
                (setf poses (append (list (format NIL"~a:~a" (nth index sem-keys) dist)) poses)))))
        (sort-list poses)))
 
+(defun check-elems-infront-agent (elem viewpoint)
+  (if (not (string-equal viewpoint "busy_genius"))
+      (setf viewpoint (format NIL "~a/base_link" viewpoint)))
+   (if (null *sem-map*)
+      (setf *sem-map* (sem-map-utils:get-semantic-map)))
+  (let*((poses NIL))
+       (let*((pose (get-pose-by-elem elem))
+            (pub (cl-tf:set-transform *tf* (cl-transforms-stamped:make-transform-stamped "map" elem (roslisp:ros-time) (cl-transforms:origin pose) (cl-transforms:orientation pose))))
+            (obj-pose2 (cl-transforms-stamped:transform->pose (cl-tf:lookup-transform *tf* "map" elem)))
+            (obj-pose (cl-transforms-stamped:transform->pose (cl-tf:lookup-transform *tf* viewpoint elem)))
+            (agentpose (cl-transforms:transform->pose  (cl-tf:lookup-transform *tf*  "map" viewpoint)))
+            (dist (get-distance agentpose obj-pose2)))
+      (if (and (>= 500 dist)
+               (plusp (cl-transforms:x (cl-transforms:origin obj-pose))))
+               (setf poses T)))
+    poses))
+
 (defun get-front-elems-of-agent (&optional (viewpoint "busy_genius"))
-  ;;(format t "get-elems-agent-front-by-dist~%")
+  (format t "get-elems-agent-front-by-dist~%")
    (if (not (string-equal viewpoint "busy_genius"))
       (setf viewpoint (format NIL "~a/base_link" viewpoint)))
-  (setf *sem-map* (sem-map-utils:get-semantic-map))
+  (if (null *sem-map*)
+      (setf *sem-map* (sem-map-utils:get-semantic-map)))
+;;  (format t "eneee ~a~%" (slot-value *sem-map* 'sem-map-utils:parts))
+ ;; (format t "mene ~a~%" (hash-table-keys (slot-value *sem-map* 'sem-map-utils:parts)))
   (let*((sem-hash (slot-value *sem-map* 'sem-map-utils:parts))
         (sem-keys (hash-table-keys sem-hash))
         (poses '())
         (result '()))
+    ;;(format t "pose-busy-genius ~a~%" (cl-tf:lookup-transform *tf* "map" "busy_genius"))
     (dotimes (index (length sem-keys))
+    ;;  (format t "element ~a~%" (nth index sem-keys))
+     (cond ((not (search "MountainRoad" (nth index sem-keys)))
       (let*((pose (get-pose-by-elem (nth index sem-keys)))
             (pub (cl-tf:set-transform *tf* (cl-transforms-stamped:make-transform-stamped "map" (nth index sem-keys) (roslisp:ros-time) (cl-transforms:origin pose) (cl-transforms:orientation pose))))
             (obj-pose2 (cl-transforms-stamped:transform->pose (cl-tf:lookup-transform *tf* "map" (nth index sem-keys))))
@@ -385,7 +440,7 @@
             (dist (get-distance agentpose obj-pose2)))
       (if (and (>= 500 dist)
                (plusp (cl-transforms:x (cl-transforms:origin obj-pose))))
-               (setf poses (append (list (format NIL"~a:~a" (nth index sem-keys) dist)) poses)))))
+               (setf poses (append (list (format NIL"~a:~a" (nth index sem-keys) dist)) poses)))))))
        (setf poses (sort-list poses))
     (dotimes (index (length poses))
       (setf result (append (list (first (split-sequence:split-sequence #\: (nth index poses)))) result)))
@@ -406,7 +461,99 @@
           (setf liste (append (list (nth index sem-keys)) liste))))
     ;;(format t "liste ~a~%"liste)
     (reverse liste)))
-      
+
+(defun publish-body (pose)
+  (setf *marker-publisher*
+        (roslisp:advertise "~location_marker" "visualization_msgs/Marker"))
+  (let* ((point (cl-transforms:origin pose))
+         (rot (cl-transforms:orientation pose)))
+    (when *marker-publisher*
+      (publish-pose-color pose (cl-transforms:make-3d-vector 1 1 0))
+      (roslisp:publish *marker-publisher*
+               (roslisp:make-message "visualization_msgs/Marker"
+                             (stamp header) (roslisp:ros-time)
+                             (frame_id header)
+                             (typecase pose
+                               (cl-transforms-stamped:pose-stamped (cl-transforms-stamped:frame-id  pose))
+                               (t cram-tf:*fixed-frame*))
+
+                             ns "kipla_locations"
+                             id 200000
+                             type (roslisp:symbol-code 
+                                   'visualization_msgs-msg:<marker> :cylinder)
+                             action (roslisp:symbol-code
+                                     'visualization_msgs-msg:<marker> :add)
+                             (x position pose) (cl-transforms:x point)
+                             (y position pose) (cl-transforms:y point)
+                             (z position pose) 1.0
+                             (x orientation pose) (cl-transforms:x rot)
+                             (y orientation pose) (cl-transforms:y rot)
+                             (z orientation pose) (cl-transforms:z rot)
+                             (w orientation pose) (cl-transforms:w rot)
+                             (x scale) 0.3
+                             (y scale) 0.3
+                             (z scale) 2
+                             (r color) 1.0
+                             (g color) 0.0
+                             (b color) 0.0
+                             (a color) 1.0))
+      (roslisp:publish *marker-publisher*
+               (roslisp:make-message "visualization_msgs/Marker"
+                             (stamp header) (roslisp:ros-time)
+                             (frame_id header) cram-tf:*fixed-frame*
+                             ns "kipla_locations"
+                             id 100000
+                             type (roslisp:symbol-code 
+                                   'visualization_msgs-msg:<marker> :sphere)
+                             action (roslisp:symbol-code
+                                     'visualization_msgs-msg:<marker> :add)
+                             (x position pose) (cl-transforms:x point)
+                             (y position pose) (cl-transforms:y point)
+                             (z position pose) (+ 2 (cl-transforms:z point))
+                             (w orientation pose) 1.0
+                             (x scale) 0.5
+                             (y scale) 0.5
+                             (z scale) 0.5
+                             (r color) 1.0 ; (random 1.0)
+                             (g color) 0.0 ; (random 1.0)
+                             (b color) 0.0 ; (random 1.0)
+                             (a color) 1.0)))))
+
+(defun publish-pose-color (pose vec)
+  (setf *marker-publisher*
+        (roslisp:advertise "~location_marker" "visualization_msgs/Marker"))
+    (let ((point (cl-transforms:origin pose))
+          (rot (cl-transforms:orientation pose)))
+    (when *marker-publisher*
+      (roslisp:publish *marker-publisher*
+                       (roslisp:make-message "visualization_msgs/Marker"
+                                             (stamp header) (roslisp:ros-time)
+                                             (frame_id header)
+                             (typecase pose
+                               (cl-transforms-stamped:pose-stamped (cl-transforms-stamped:frame-id  pose))
+                               (t cram-tf:*fixed-frame*))
+                             ns "kipla_locations"
+                             id 500000
+                             type (roslisp:symbol-code 
+                                   'visualization_msgs-msg:<marker> :arrow)
+                             action (roslisp:symbol-code 
+                                     'visualization_msgs-msg:<marker> :add)
+                             (x position pose) (cl-transforms:x point)
+                             (y position pose) (cl-transforms:y point)
+                             (z position pose) (+ (cl-transforms:z point) 2)
+                             (x orientation pose) (cl-transforms:x rot)
+                             (y orientation pose) (cl-transforms:y rot)
+                             (z orientation pose) (cl-transforms:z rot)
+                             (w orientation pose) (cl-transforms:w rot)
+                             (x scale) 0.40
+                             (y scale) 0.15
+                             (z scale) 0.15
+                             (r color) 1;;(cl-transforms:x vec) ; (random 1.0)
+                             (g color) 0;;(cl-transforms:y vec) ; (random 1.0)
+                             (b color) 0;;(cl-transforms:z vec) ; (random 1.0)
+                             (a color) 1.0)))))
+
+
 (defun publish-box (pose vector &key id)
   (setf *marker-publisher*
         (roslisp:advertise "~location_marker" "visualization_msgs/Marker"))

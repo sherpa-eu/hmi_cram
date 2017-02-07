@@ -48,7 +48,14 @@
         
 (defun give-pointed-direction (pose)
   (format t "give pointed direction~%")
-  (let ((liste (calculate-ray pose)))
+  (let ((liste (calculate-ray (cl-transforms:make-pose
+                               (cl-transforms:make-3d-vector (cl-transforms:x
+                                                              (cl-transforms:origin pose))
+                                                             (cl-transforms:y
+                                                              (cl-transforms:origin pose))
+                                                             (+ 2 (cl-transforms:z
+                                                              (cl-transforms:origin pose))))
+                               (cl-transforms:orientation pose)))))
     (format t "~a~%" liste)
     (nth 800 liste)))
 
@@ -76,7 +83,7 @@
 (defun calculate-ray (pose)
   (let((poslist'()))
        (publish-pose pose :id 1100)
-    (loop for index from 3 to 100
+    (loop for index from 3 to 200
           do (cl-tf:set-transform *tf* (cl-transforms-stamped:make-transform-stamped
                                         "map" "gesture"
                                         (roslisp:ros-time)
@@ -139,7 +146,7 @@
   (setf poslist (reverse poslist))
   (dotimes(test (length poslist))
     do  ;;(format t "test4 ~a~%" (nth test poslist))
-    ;;(format t "test ~a~%" test)
+   (format t "test ~a~%" test)
     (publish-pose (nth test poslist) :id (+  test 100)))
     ;;(format t "end of function~%"))
   ;;  )
