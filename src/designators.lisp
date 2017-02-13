@@ -30,9 +30,8 @@
 
 
 (defun go-there-function (index)
-  (format t "go there ~%")
   (let((action-list '())
-       (loc_desig NIL)
+       (loc_desig NIL)(obj NIL)
        (actor (std_msgs-msg:data
                (hmi_interpreter-msg:actor index)))
        (operator (std_msgs-msg:data
@@ -40,10 +39,13 @@
        (viewpoint (std_msgs-msg:data
                    (hmi_interpreter-msg:viewpoint index)))
        (propkeys (hmi_interpreter-msg:propkeys index)))
+    (roslisp:wait-for-service "add_openEase_object" 10)
+    (setf obj (slot-value (roslisp:call-service "add_openEase_object"
+                       'hmi_interpreter-srv:text_parser :goal "get")
+                         'hmi_interpreter-srv:result))
     (loop for jndex being the elements of propkeys
           do(let((pose NIL)
                  (pointed-pose NIL))
-              ;;(format t "go tssshere123 ~a~%"(hmi_interpreter-msg:pointing_gesture jndex))
               (setf pose (cl-transforms:make-pose 
                           (cl-transforms:make-3d-vector
                            (geometry_msgs-msg:x
@@ -68,13 +70,12 @@
                            (geometry_msgs-msg:w
                             (geometry_msgs-msg:orientation
                              (hmi_interpreter-msg:pointing_gesture jndex))))))
-              ;;(format t "go there123 ~%")
-              (publish-pose pose :id 19208213 :zet 0.0)
-              (setf pointed-pose (give-pointed-direction pose))
-              ;;(format t "go there1234 ~%")
+              (publish-pose pose :id 19208213)
+              (if (string-equal "none" obj)
+                  (setf pointed-pose (give-pointed-direction pose))
+                  (setf pointed-pose obj))
               (setf loc_desig (make-designator :location `((:viewpoint ,viewpoint)
                                                            (:pose ,pointed-pose))))
-              ;;(format t "go there1235 ~%")
               (if (string-equal "robot" actor)
                   (setf actor NIL))
               (setf action-list (append action-list
@@ -82,7 +83,6 @@
                                                                          (:actor ,actor)
                                                                          (:operator ,(set-keyword operator))
                                                                          (:destination ,loc_desig))))))))
-    ;;(format t "go there12356 ~%")
     action-list))
 
 
@@ -91,37 +91,37 @@
        (elem-name NIL))
     (cond((or (string-equal "scan-lake-area" action)
               (string-equal "scan-bridge-area" action)
-              (string-equal "scan-tunnel-area" action)
-              (string-equal "scan-forest-area" action))
+              (string-equal "scan-tunnel-area" action))
           (setf elem-name  (second (split-sequence:split-sequence #\- action)))
-          (setf elem-name (get-specific-elem elem-name viewpoint))
+          (setf elem-name (get-all-elems-front-agent-by-type elem-name viewpoint))
           (setf desig (list (make-designator :action `((:to ,(set-keyword "scan"))
                                                        (:actor ,actor)
                                                        (:operator ,(set-keyword operator))
-                                                       ;; (:viewpoint ,viewpoint)
                                                        (:area ,elem-name))))))
+         ((string-equal "scan-area" action)
+          (setf desig (list (make-designator :action `((:to ,(set-keyword "scan"))
+                                                       (:actor ,actor)
+                                                       (:operator ,(set-keyword operator))
+                                                       (:area ,objname))))))
          ((or (string-equal "take-picture" action)
               (string-equal "show-picture" action))
           (setf desig (list (make-designator :action `((:to ,(set-keyword action))
                                                        (:actor ,actor)
                                                        (:operator ,(set-keyword operator)))))))
-         ;;(:viewpoint ,viewpoint))))))
          ((string-equal "come-back" action)
           (setf desig (list (make-designator :action `((:to ,(set-keyword "go"))
                                                        (:actor ,actor)
                                                        (:operator ,(set-keyword operator))
-                                                       (:to ,(make-designator :location `((:viewpoint ,viewpoint)
-                                                                                          (:next-to "busy_genius"))))))
-                            (make-designator :action `((:to ,(set-keyword "land"))
-                                                       (:actor ,actor)
-                                                       (:operator ,(set-keyword operator)))))))
+                                                       (:destination ,(make-designator :location `((:viewpoint ,viewpoint)
+                                                                                          (:pose
+                                                                                           ,(tf-busy-genius-to-map))))))))))
+                              ;;                                                             "busy_genius")))))))))
          ((or (string-equal "look-for" action)
               (string-equal "search-for" action))
           (setf desig (list (make-designator :action `((:to ,(set-keyword "look-for"))
                                                        (:actor ,actor)
                                                        (:operator ,(set-keyword operator))
-                                                       ;; (:viewpoint ,viewpoint)
-                                                       (:object ,objname))))));; (get-specific-elem objname viewpoint)))))))
+                                                       (:object ,objname))))))
          ((or (string-equal "take-off" action)
               (string-equal "land" action))
           (setf desig (list (make-designator :action `((:to ,(set-keyword "land"))
@@ -145,8 +145,8 @@
 
 (defun create-desig-based-on-hmi-call (desigs)
   (format t "[(CRAM-CREATE-DESIG) INFO] DESIG: ~a~%" desigs)
-  (let ((action-list '())
-        (act-list '())
+  (let ((act-list '())
+        (action-list '())
         (actor NIL)
         (flist NIL))
     (loop for index being the elements of desigs
@@ -155,18 +155,16 @@
                  (setf action-list (append action-list (go-there-function index)))
                  (setf action-list (append action-list (various-commands-function index)))))
     (dotimes (index (length action-list))
-      (let((pose NIL))  
+      (let((pose NIL))
         (cond((and (not (null (desig-prop-value (nth index action-list) :destination)))
                    (null (desig-prop-value (desig-prop-value (nth index action-list) :destination) :pose)))
-              (setf flist (first (first (desig:properties (desig-prop-value (nth index action-list) :destination)))))
-           
+              (setf flist (first (first (desig:properties (desig-prop-value (nth index action-list) :destination)))))           
               (cond((string-equal (second flist) "null")
-                    ;;(format t "index ~a~%" (nth index action-list))
                     (setf pose (calculate-relation-by-agent-pose (desig-prop-value (nth index action-list) :viewpoint)
                                                                  (first flist)))
-                    ;;  (format t "index123 ~a~%" pose)
-                    ;; (publish-pose pose :id 100)
-                    (if (not (string-equal "robot" (desig-prop-value (nth index action-list) :actor)))
+                    (if (or (not (string-equal "robot" (desig-prop-value (nth index action-list) :actor)))
+                            (not (string-equal "null" (desig-prop-value (nth index action-list) :actor)))
+                            (not (null  (desig-prop-value (nth index action-list) :actor))))
                         (setf actor (desig-prop-value (nth index action-list) :actor)))
                     (setf act-list (append act-list
                                            (list
@@ -175,19 +173,13 @@
                                                                        (:operator ,(desig-prop-value (nth index action-list) :operator))
                                                                        (:destination
                                                                         ,(make-designator :location `((:viewpoint ,(desig-prop-value (nth index action-list) :viewpoint))
-                                                                                                      (:pose ,pose)))))))))
-                    (publish-pose pose :id 3223)
-
-                    );;(format t "index456 ~a~%" (nth index action-list)))
-                   (t (setf act-list (append act-list (list (nth index action-list))))))
-              );;(format t "indexxdasdsad ~a~%" act-list))
+                                                                                                      (:pose ,pose))))))))))
+                   (t 
+                    (setf act-list (append act-list (list (nth index action-list)))))))
              (t (setf act-list (append act-list (list (nth index action-list))))))))
-    (setf action-list act-list)
-    ;; (format t "action-list ~a~%" action-list)
-    action-list))
+    act-list))
 
 (defun various-commands-function (index)
-  (format t "various commands~%")
   (let ((action-list '())
         (property-list NIL)
         (loc_desig NIL)
@@ -200,8 +192,13 @@
         (viewpoint (std_msgs-msg:data
                     (hmi_interpreter-msg:viewpoint index)))
         (obj NIL)
+        (oe-object NIL)
         (propkeys (hmi_interpreter-msg:propkeys index)))
-     (format t "various commands1~%")
+    (roslisp:wait-for-service "add_costmap_name" 10)
+    (setf oe-object (slot-value
+                     (roslisp:call-service "add_openEase_object"
+                                           'hmi_interpreter-srv:text_parser :goal "get")
+                     'hmi_interpreter-srv:result))
     (loop for jndex being the elements of propkeys
           do(let((pose NIL)
                  (spatial
@@ -222,9 +219,9 @@
                  (flag
                    (std_msgs-msg:data
                     (hmi_interpreter-msg::flag jndex))))
-              (format t "various commands2~%")
               (cond((and (string-equal "true" flag)
-                         (null (get-elem-pose object)))
+                         (null (get-elem-pose object))
+                         (string-equal oe-object "none"))
                     (setf pose (cl-transforms:make-pose 
                                 (cl-transforms:make-3d-vector
                                  (geometry_msgs-msg:x
@@ -250,18 +247,21 @@
                                   (geometry_msgs-msg:orientation
                                    (hmi_interpreter-msg:pointing_gesture jndex))))))
                     (setf obj (get-pointed-elem-by-voice-type pose object viewpoint)))
+                   ((and (not (string-equal "mount" action))
+                         (string-equal "true" flag)
+                        (not (string-equal oe-object "none")))
+                    (setf obj oe-object))
                    (t (setf obj NIL)))
-              (format t "various commands13q%")
               (if (null obj)
                   (setf obj object))
               (if (string-equal spatial "to")
                   (setf spatial "next-to"))
-              (setf property-list (append (list  (list (list (set-keyword spatial) obj)
+              (setf property-list (append (list  (list 
+                                                       (list (set-keyword spatial) obj)
                                                        (list :color color)
                                                        (list :size size)
                                                        (list :num num))) property-list))))
     (setf loc_desig (make-designator :location (reverse property-list)))
-    (format t "ende~%")
     (if (string-equal "robot" actor)
         (setf actor NIL))
     (setf action-list (append action-list (make-designator-with-adapted-actions action
@@ -272,15 +272,25 @@
                                                                                 loc_desig)))
     action-list))
 
-(defun add-semantic-to-desigs (viewpoint desig) 
-  (setf actor NIL)
-  (format t "add-semantic-to-desigs~%")
-  (cond((and ;;(null (desig-prop-value desig :to))
-         (null (desig-prop-value desig :destination))
-         (null (desig-prop-value desig :area))
-         (null (desig-prop-value desig :obj))
-         (null (desig-prop-value desig :agent)))
-        ;; (format t "nix~%")
+
+(defun reset-all-services()
+ (roslisp:wait-for-service "add_costmap_name" 10)
+ (roslisp:call-service "add_costmap_name"
+                       'hmi_interpreter-srv:text_parser :goal "none")
+ (roslisp:wait-for-service "add_openEase_object" 10)
+ (roslisp:call-service "add_openEase_object"
+                       'hmi_interpreter-srv:text_parser :goal "none"))
+  
+  
+  
+(defun add-semantic-to-desigs (viewpoint desig)
+  (let((actor NIL)
+       (posy NIL)
+       (pose NIL))
+  (cond((and (null (desig-prop-value desig :destination))
+             (null (desig-prop-value desig :area))
+             (null (desig-prop-value desig :obj))
+             (null (desig-prop-value desig :agent)))
         (setf desig desig))
        ((and (not (null (desig-prop-value desig :destination)))
              (not (null (desig-prop-value (desig-prop-value desig :destination) :pose))))
@@ -292,36 +302,27 @@
        ((not (null (desig-prop-value desig :destination)))
         (let* ((goal (desig-prop-value desig :destination))(felem NIL)(tmpproplist '())
                (proplist (desig:properties goal)))
-          (format t "goal123 ~a~%" goal)
           (cond ((= 1 (length proplist))
-                 (format t "teeeet~%")
-                 (cond((equal (type-of (second (first (first (last proplist))))) ;;((:spatial "object")...)
-                              'cl-transforms:pose) ;;if object type of pose          
-                       
+                 (cond((equal (type-of (second (first (last proplist)))) 'cl-transforms:pose)  
                        (setf tmpproplist
                              (append tmpproplist
                                      (list (list (first (first (first (last proplist))))
                                                  (second (first (first (last proplist)))))))))
-                      (t (format t "jdjddj~%")
-                         (setf posy (get-elem-pose (second (first (first (last proplist))))))
+                      (t 
+                       (setf posy (get-elem-pose (second (first (first (last proplist))))))
                          (cond ((not (null posy))
-                                
                                 (setf felem (second (first (first (last proplist)))))
                                 (setf pose posy)                      
-                                (format t "pos-------------------e ~a~%"pose)
-                                
                                 (setf tmpproplist (append tmpproplist
-                                                          (list (list :pose
-                                                                      pose)))))
+                                                          (list (list :pose pose)))))
+                                                                   ;;   felem)))))
                                ((and (null (get-elem-pose (second (first (first proplist))))) ;;;if object is not-name
                                      (and (or (not (null (second (first (first proplist))))) ;; if obj is not NIL or
                                               (not (string-equal "null" (second (first (first proplist)))))) ;; if obj is not "null"
                                           (and (not (null (second (first (first proplist))))) ;;if obj is not NIL and
                                                (not (string-equal "null" (second (first (first proplist)))))))) ;; if obj is not "null"
-                                (format t "hier ist der type~%")
                                 (setf felem  (first (get-all-elems-front-agent-by-type
                                                      (second (first (first proplist))) viewpoint)))
-                                ;;    (format t "felem: ~a~%" felem)
                                 (roslisp:wait-for-service "add_costmap_name" 10)
                                 (setf pose 
                                       (roslisp:call-service "add_costmap_name"
@@ -329,15 +330,13 @@
                                 (setf tmpproplist (append tmpproplist
                                                           (list (list (first (first (first (last proplist))))
                                                                       felem)))))
-                               (t (format t "ich weiss nicht~%")
-                                  (setf tmpproplist (append tmpproplist
+                               (t
+                                (setf tmpproplist (append tmpproplist
                                                             (list (list (first (first (first (last proplist))))
                                                                         felem)))))))))
                 ((= 2 (length proplist))
                  (setf tmpproplist (add-semantics-two-desigs proplist viewpoint))))
           (setf tmpproplist (append (list (list :viewpoint (desig-prop-value desig :viewpoint))) tmpproplist))
-          ;; (format t "tmpproplist ~a~%" tmpproplist)
-          
           (if (or (not (string-equal "robot" (desig-prop-value desig :actor)))
                   (not (null (desig-prop-value desig :actor))))
               (setf actor (desig-prop-value desig :actor)))
@@ -345,26 +344,22 @@
                                                  (:actor ,actor)
                                                  (:operator ,(desig-prop-value desig :operator))
                                                  (:destination ,(make-designator :location tmpproplist))))))))
-  ;; (format t "print desig ~a~%" desig)
-  desig)
+desig))
 
 (defun add-semantics-two-desigs  (proplist viewpoint)
-  ;; (format t " add-semantics-two-desigs ~a~%" proplist)
   (let*((list2 (first (last proplist)))
         (list1 (first proplist))
-        (typelist1 (get-front-elems-of-agent-by-type (second (first list1)) viewpoint))
+        (typelist1 (get-all-elems-front-agent-by-type (second (first list1)) viewpoint))
         (tmpproplist '())
         (dist 10)
         (selem NIL)(felem NIL))
-    ;; (format t "teest ~a~%"  (second (first list1)))
-    (cond((and (null (get-pose-by-elem (second (first list1)))) ;;type
-               (null (get-pose-by-elem (second (first list2))))) ;;type
-          ;; (format t "~a~% ~a~%" (second (first list2)) (first (first list1)))
+    (cond((and (null (get-elem-pose (second (first list1)))) ;;type
+               (null (get-elem-pose (second (first list2))))) ;;type
           (dotimes (index (length typelist1))
             (let((tmp (get-next-elem-based-on-prev-elem 
                        (second (first list2))
                        (first (first list1))
-                       (nth index typelist1))))
+                       (nth index typelist1) viewpoint)))
               (dotimes (in (length tmp))
                 (if (not (null (nth in tmp)))
                     (cond((and (> 20 (read-from-string (second (split-sequence:split-sequence #\: (nth in tmp)))))
@@ -372,23 +367,23 @@
                           (setf dist (read-from-string (second (split-sequence:split-sequence #\: (nth in tmp)))))
                           (setf felem (nth index typelist1))
                           (setf selem (first (split-sequence:split-sequence #\: (nth index tmp)))))))))))
-         ((and (not (null (get-pose-by-elem (second (first list1))))) ;;name
-               (null (get-pose-by-elem (second (first list2))))) ;;type
+         ((and (not (null (get-elem-pose (second (first list1))))) ;;name
+               (null (get-elem-pose (second (first list2))))) ;;type
           (setf selem (first
                        (split-sequence:split-sequence #\: (first
                                                            (get-next-elem-based-on-prev-elem
                                                             (second (first list2))
                                                             (first (first list1))
-                                                            (second (first list1)))))))
+                                                            (second (first list1)) viewpoint)))))
           (setf felem (second (first list1))))
-         ((and (null (get-pose-by-elem (second (first list1)))) ;;name
-               (not (null (get-pose-by-elem (second (first list2)))))) ;;type
+         ((and (null (get-elem-pose (second (first list1)))) ;;name
+               (not (null (get-elem-pose (second (first list2)))))) ;;type
           (setf felem (first
                        (split-sequence:split-sequence #\: (first
                                                            (get-prev-elem-based-on-next-elem 
                                                             (second (first list1))
                                                             (first (first list1))
-                                                            (second (first list2)))))))
+                                                            (second (first list2)) viewpoint)))))
           (setf selem (second (first list2)))))               
     (setf tmpproplist (append tmpproplist (list (list (first (first list1))
                                                       felem)

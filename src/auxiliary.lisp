@@ -33,9 +33,14 @@
 
 (defun tf-busy-genius-to-map ()
   (let ((var (cl-transforms:transform->pose (cl-tf:lookup-transform *tf* "map" "busy_genius"))))
-    (publish-pose var :id 100000000 :zet 0.0)
+   ;; (publish-pose var :id 100000000 :zet 0.0)
    ;; (format t "pose busy_genius to map ~a~%" var)
     var))
+
+(defun tf-agent-to-map (name)
+  (let* ((var (concatenate 'string name "/base_link"))
+        (pose (cl-transforms:transform->pose (cl-tf:lookup-transform *tf* "map" var))))
+    pose))
 
 (defun get-elem-pose (name)
   (cram-sherpa-spatial-relations::json-call-pose name))
@@ -83,27 +88,68 @@
 ;;       (publish-pose (get-pose-by-elem (nth jndex resultlist)) :id (+ jndex 9239874398274) :zet 0.0))
 ;;     (format t "~a~%" resultlist)
 ;;     resultlist))
- (defun get-all-elems-front-agent-by-type (type viewpoint)
- ;;  (format t "get-all-elems-by-type~%")
-   (if (null *sem-map*)
-       (setf *sem-map* (sem-map-utils:get-semantic-map)))
-     ;;(format t "get-front-elems-by-type123~%")
-   (let*((sem-hash (slot-value *sem-map* 'sem-map-utils:parts))
-         (sem-keys (hash-table-keys sem-hash))
-         (new-hash (make-hash-table))
-         (poses '())
-         (human-pose (tf-busy-genius-to-map)))
-     (dotimes (index (length sem-keys))
-       (cond((and (string-equal type (get-type-by-elem (nth index sem-keys)))
-                  (check-elems-infront-agent (nth index sem-keys) viewpoint))
-           (setf poses (append (list (format NIL "~a:~a" (nth index sem-keys)
-                                             (get-distance human-pose
-                                                           (get-pose-by-elem
-                                                            (nth index sem-keys)))))
-                                                                             poses)))))
-     (setf poses (sort-list poses))
-  ;;  (format t "~a~%" poses)
-    (list (first  (split-sequence:split-sequence #\: (car poses))))))
+ ;; (defun get-all-elems-front-agent-by-type (type viewpoint)
+ ;;   (if (null *sem-map*)
+ ;;       (setf *sem-map* (sem-map-utils:get-semantic-map)))
+ ;;   (let*((sem-hash (slot-value *sem-map* 'sem-map-utils:parts))
+ ;;         (sem-keys (hash-table-keys sem-hash))
+ ;;         (new-hash (make-hash-table))
+ ;;         (poses '())
+ ;;         (human-pose (tf-busy-genius-to-map)))
+ ;;     (dotimes (index (length sem-keys))
+ ;;       (cond((and (string-equal type (get-type-by-elem (nth index sem-keys)))
+ ;;                  (check-elems-infront-agent (nth index sem-keys) viewpoint))
+ ;;           (setf poses (append (list (format NIL "~a:~a" (nth index sem-keys)
+ ;;                                             (get-distance human-pose
+ ;;                                                           (get-pose-by-elem
+ ;;                                                            (nth index sem-keys)))))
+ ;;                                                                             poses)))))
+ ;;     (setf poses (sort-list poses))
+ ;;  ;;  (format t "~a~%" poses)
+ ;;    (list (first  (split-sequence:split-sequence #\: (car poses))))))
+
+
+(defun get-all-elems-front-agent-by-type (type viewpoint)
+  (let((actlist '())
+       (poslist '()))
+       (if (json-prolog:check-connection)
+           (let*((human-pose (tf-busy-genius-to-map))
+                 (liste NIL)(liste1 NIL)(liste2 NIL)
+                 (unrealtype NIL))
+             (cond((string-equal type "tree")
+                   (setf liste1
+                         (force-ll
+                         (json-prolog:prolog `("map_object_type" ?objs "http://knowrob.org/kb/knowrob.owl#SnowTree"))))
+                   (setf liste2
+                         (force-ll
+                         (json-prolog:prolog `("map_object_type" ?objs "http://knowrob.org/kb/knowrob.owl#PineTree"))))
+                   (setf liste (append liste1 liste2)))
+                ((string-equal type "lake")
+                 (format t "lae is ~a~%" type)
+                 (setf liste
+                         (force-ll
+                         (json-prolog:prolog `("map_object_type" ?objs "http://knowrob.org/kb/knowrob.owl#FrozenLake")))))
+                (t
+                 (setf unrealtype (concatenate 'string "http://knowrob.org/kb/knowrob.owl#"
+                                               (string-capitalize type)))
+                 (setf liste (force-ll
+                         (json-prolog:prolog `("map_object_type" ?objs ,unrealtype))))))
+             (dotimes (index (length liste))
+               (let ((obj (second
+                           (split-sequence:split-sequence #\# 
+                                                          (remove #\' (symbol-name (cdar  (nth index liste))))))))
+               (if(and (check-elems-infront-agent obj viewpoint)
+                       (not (find obj actlist :test #'equal))) 
+                  (setf actlist (append actlist (list
+                                                 (format NIL "~a:~a"
+                                                         obj
+                                                         (get-distance human-pose
+                                                                       (get-elem-pose
+                                                                        obj)))))))))))
+    (setf actlist (remove-duplicates (sort-list actlist) :test #'equal))
+    (dotimes (jndex (length actlist))
+      (setf poslist (append poslist (list (first (split-sequence:split-sequence #\: (nth jndex actlist)))))))
+    poslist))
 
 
 ;; Checking the relation of the objects. See if obj1 satisfy the
@@ -228,19 +274,17 @@
 ;; @spatial: spatial relation of the elements
 ;; @name: element name
 ;;
-(defun get-prev-elem-based-on-next-elem (type spatial name)
-  ;;(format t "get-prev-elem ~a ~a ~a~%"type spatial name)
-  (let*((liste (get-front-elems-of-agent-by-type type))
+(defun get-prev-elem-based-on-next-elem (type spatial name viewpoint)
+  (let*((liste (get-all-elems-front-agent-by-type type viewpoint))
         (resultlist '()))
-    ;;(format t "liste ~a~%" liste)
     (dotimes (index (length liste))
       (if  (not (null (check-elems-by-relation->get-elems-in-tf
                            (nth index liste) name  spatial)))
             (setf resultlist (append resultlist (list 
                                                (format NIL "~a:~a"(nth index liste)                                                       (get-distance
-                                                        (get-pose-by-elem
+                                                        (get-elem-pose
                                                          (nth index liste))
-                                                        (get-pose-by-elem name))))))))
+                                                        (get-elem-pose name))))))))
     (if (null resultlist)
         (setf resultlist (get-elems-around liste "around" name)))
     (sort-list resultlist)))
@@ -251,34 +295,31 @@
 ;; @spatial: spatial relation of the elements
 ;; @name: element name
 ;;
-(defun get-next-elem-based-on-prev-elem (type spatial name)
-  ;;(format t "get-next-elem ~a ~a ~a~%"type spatial name)
-  (let*((liste (get-front-elems-of-agent-by-type type))
+(defun get-next-elem-based-on-prev-elem (type spatial name viewpoint)
+  (let*((liste (get-all-elems-front-agent-by-type type viewpoint))
         (resultlist '()))
-     ;;(format t "liste ~a~%" liste)
     (dotimes (index (length liste))
       (if  (not (null (check-elems-by-relation->get-elems-in-tf
                            name (nth index liste)  spatial)))
             (setf resultlist (append resultlist (list 
                                                (format NIL "~a:~a"(nth index liste)                                                       (get-distance
-                                                        (get-pose-by-elem
+                                                        (get-elem-pose 
                                                          (nth index liste))
-                                                        (get-pose-by-elem name))))))))
+                                                        (get-elem-pose name))))))))
     (if (null resultlist)
         (setf resultlist (get-elems-around liste "around" name)))
     (sort-list resultlist)))
 
 (defun get-elems-around (liste spatial name)
   (let((resultlist '()))
-    ;;(format t "liste ~a~%" liste)
     (dotimes (index (length liste))
       (if  (not (null (check-elems-by-relation->get-elems-in-tf
                            name (nth index liste) spatial)))
             (setf resultlist (append resultlist (list 
                                                (format NIL "~a:~a"(nth index liste)                                                       (get-distance
-                                                        (get-pose-by-elem
+                                                        (get-elem-pose
                                                          (nth index liste))
-                                                        (get-pose-by-elem name))))))))
+                                                        (get-elem-pose name))))))))
     resultlist))
 
 (defun set-keyword (string)
@@ -387,8 +428,7 @@
              (square (- z-vec z-ge)))))))
 
 (defun get-front-elems-of-agent-with-dist (viewpoint)
-  ;;(format t "get-elems-agent-front-by-dist~%")
-  (if (not (string-equal viewpoint "busy_genius"))
+ (if (not (string-equal viewpoint "busy_genius"))
       (setf viewpoint (format NIL "~a/base_link" viewpoint)))
   (setf *sem-map* (sem-map-utils:get-semantic-map))
   (let*((sem-hash (slot-value *sem-map* 'sem-map-utils:parts))
@@ -409,35 +449,26 @@
 (defun check-elems-infront-agent (elem viewpoint)
   (if (not (string-equal viewpoint "busy_genius"))
       (setf viewpoint (format NIL "~a/base_link" viewpoint)))
-   (if (null *sem-map*)
-      (setf *sem-map* (sem-map-utils:get-semantic-map)))
   (let*((poses NIL))
-       (let*((pose (get-pose-by-elem elem))
-            (pub (cl-tf:set-transform *tf* (cl-transforms-stamped:make-transform-stamped "map" elem (roslisp:ros-time) (cl-transforms:origin pose) (cl-transforms:orientation pose))))
-            (obj-pose2 (cl-transforms-stamped:transform->pose (cl-tf:lookup-transform *tf* "map" elem)))
-            (obj-pose (cl-transforms-stamped:transform->pose (cl-tf:lookup-transform *tf* viewpoint elem)))
-            (agentpose (cl-transforms:transform->pose  (cl-tf:lookup-transform *tf*  "map" viewpoint)))
-            (dist (get-distance agentpose obj-pose2)))
+       (let*((pose (get-elem-pose elem));;pose-by-elem elem))
+             (pub (cl-tf:set-transform *tf* (cl-transforms-stamped:make-transform-stamped "map" elem (roslisp:ros-time) (cl-transforms:origin pose) (cl-transforms:orientation pose))))
+             (obj-pose2 (cl-transforms-stamped:transform->pose (cl-tf:lookup-transform *tf* "map" elem)))
+             (obj-pose (cl-transforms-stamped:transform->pose (cl-tf:lookup-transform *tf* viewpoint elem)))
+             (agentpose (cl-transforms:transform->pose  (cl-tf:lookup-transform *tf*  "map" viewpoint)))
+             (dist (get-distance agentpose obj-pose2)))
       (if (and (>= 500 dist)
                (plusp (cl-transforms:x (cl-transforms:origin obj-pose))))
                (setf poses T)))
     poses))
 
 (defun get-front-elems-of-agent (&optional (viewpoint "busy_genius"))
-  (format t "get-elems-agent-front-by-dist~%")
    (if (not (string-equal viewpoint "busy_genius"))
       (setf viewpoint (format NIL "~a/base_link" viewpoint)))
-  (if (null *sem-map*)
-      (setf *sem-map* (sem-map-utils:get-semantic-map)))
-;;  (format t "eneee ~a~%" (slot-value *sem-map* 'sem-map-utils:parts))
- ;; (format t "mene ~a~%" (hash-table-keys (slot-value *sem-map* 'sem-map-utils:parts)))
   (let*((sem-hash (slot-value *sem-map* 'sem-map-utils:parts))
         (sem-keys (hash-table-keys sem-hash))
         (poses '())
         (result '()))
-    ;;(format t "pose-busy-genius ~a~%" (cl-tf:lookup-transform *tf* "map" "busy_genius"))
     (dotimes (index (length sem-keys))
-    ;;  (format t "element ~a~%" (nth index sem-keys))
      (cond ((not (search "MountainRoad" (nth index sem-keys)))
       (let*((pose (get-pose-by-elem (nth index sem-keys)))
             (pub (cl-tf:set-transform *tf* (cl-transforms-stamped:make-transform-stamped "map" (nth index sem-keys) (roslisp:ros-time) (cl-transforms:origin pose) (cl-transforms:orientation pose))))
@@ -627,14 +658,16 @@
     result))
 
 (defun get-specific-elem (name viewpoint)
+  (format t "name ~a~%" name)
    (if (not (string-equal viewpoint "busy_genius"))
       (setf viewpoint (format NIL "~a/base_link" viewpoint)))
-  (let((elem-list (get-elems-of-type name))
-       (poses '()))
+  (let((elem-list (get-all-elems-front-agent-by-type name viewpoint))
+       (poses '())
+       (pose NIL)(obj-pose NIL))
     (dotimes (index (length elem-list))
-      (let*((pose (get-pose-by-elem (nth index elem-list)))
-            (pub (cl-tf:set-transform *tf* (cl-transforms-stamped:make-transform-stamped "map" (nth index elem-list) (roslisp:ros-time) (cl-transforms:origin pose) (cl-transforms:orientation pose))))
-            (obj-pose (cl-transforms-stamped:transform->pose (cl-tf:lookup-transform *tf* viewpoint (nth index elem-list)))))
-        (if (plusp (cl-transforms:x (cl-transforms:origin obj-pose)))
-            (setf poses (append poses (list (nth index elem-list)))))))
+      (setf pose (get-elem-pose (nth index elem-list)))
+      (cl-tf:set-transform *tf* (cl-transforms-stamped:make-transform-stamped "map" (nth index elem-list) (roslisp:ros-time) (cl-transforms:origin pose) (cl-transforms:orientation pose)))
+      (setf obj-pose (cl-transforms-stamped:transform->pose (cl-tf:lookup-transform *tf* viewpoint (nth index elem-list))))
+      (if (plusp (cl-transforms:x (cl-transforms:origin obj-pose)))
+          (setf poses (append poses (list (nth index elem-list))))))
     (first poses)))

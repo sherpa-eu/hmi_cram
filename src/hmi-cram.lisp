@@ -34,37 +34,29 @@
 
 (defun hmi-cram-call ()
   (roslisp-utilities:startup-ros :name "hmi_cram_service")
- ;; (setf *sem-map* (sem-map-utils:get-semantic-map))
   (roslisp:register-service "service_hmi_cram" 'hmi_interpreter-srv:HMIDesig)
   (roslisp:ros-info (basics-system) "start hmi_cram_service")
   (roslisp:spin-until nil 1000))
 
 (roslisp:def-service-callback hmi_interpreter-srv::HMIDesig (desigs)
-;;  (tf-busy-genius-to-map)
- ;;(display-semantic-map)
- (let (;;(id  (beliefstate:start-node "INTERPRET-INSTRUCTION-DESIGNATOR" NIL 2))
-       (newliste '())
-       (create_desig (create-desig-based-on-hmi-call desigs))
+  (let ((create_desig (create-desig-based-on-hmi-call desigs))
        (semantic_desig '()))
-   ;; (tf-busy-genius-to-map)
-  ;; (format t "after agent-pose~%")
-   (dotimes (index (length create_desig))
-   ;;    (format t "deisgnator~%")
-     (setf semantic_desig (append (list (add-semantic-to-desigs (desig-prop-value (nth index create_desig) :viewpoint) (nth index create_desig))) semantic_desig)))
-   (setf semantic_desig (reverse semantic_desig))
-   (format t "[(CRAM-REASON-DESIG) INFO] DESIG: ~a~%" semantic_desig)
-   (setf newliste semantic_desig);; (reference-designators semantic_desig))
-  ;; (dotimes (index (length newliste))
-   (format t "Uebergabe: ~a~%"(first newliste))
+      (dotimes (index (length create_desig))
+        (setf semantic_desig
+              (append semantic_desig (list (add-semantic-to-desigs
+                                            (desig-prop-value (nth index create_desig) :viewpoint)
+                                            (nth index create_desig))))))
+    (reset-all-services)
+    
+    (format t "[(CRAM-REASON-DESIG) INFO] DESIG: ~a~%" semantic_desig)
   ;; (let ((thread-handle NIL))
   ;;   (unwind-protect 
    ;;       (progn 
-(setf thread-handle (sb-thread:make-thread
-                     (lambda ()
-                    (commander:human-command (first newliste)))))
+;;(setf thread-handle (sb-thread:make-threadq
+  ;;                   (lambda ()
+    ;;                (commander:human-command (first semantic_desig)))))
    ;;         (sleep 5.0))
  ;;      (sb-thread:terminate-thread thread-handle)))      
-   (format t "ENDE~%")
    (roslisp:make-response :result "Done!")))
 
 
