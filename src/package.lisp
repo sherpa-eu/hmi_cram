@@ -33,10 +33,13 @@
           #:location-costmap
           #:common-lisp
           #:cram-prolog
-          #:btr
+          ;;  #:btr
           #:cram-utilities
-          #:cram-bullet-reasoning
-          #:cram-bullet-reasoning-belief-state
-	  #:cram-language-implementation)
-    (:shadowing-import-from #:btr object pose object-pose width height name)
-    (:shadowing-import-from #:cpl-impl #:fail))
+          ;; #:cram-bullet-reasoning
+          ;; #:cram-bullet-reasoning-belief-state
+          #:cram-sherpa-spatial-relations
+          ;;#:cram-tf
+	 ;; #:cram-language-implementation)
+  ;;  (:shadowing-import-from #:btr object pose object-pose width height name)
+  ;;  (:shadowing-import-from #:cpl-impl #:fail))
+))

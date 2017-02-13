@@ -32,18 +32,21 @@
   :depends-on (cram-designators
                cram-location-costmap
                cram-prolog
+               cram-commander
                roslisp
                cram-semantic-map-costmap
-               cram-bullet-reasoning
-               cram-bullet-reasoning-belief-state
-               cram-plan-library
-               cram-bullet-reasoning-designators
-               cram-beliefstate
+               ;; cram-bullet-reasoning
+               ;; cram-bullet-reasoning-belief-state
+               ;; cram-plan-library
+               ;;cram-bullet-reasoning-designators:
+               ;; cram-beliefstate
                cl-tf
-               cram-semantic-map-designators
+               ;; cram-commander
+               cram-sherpa-spatial-relations
+               ;; cram-semantic-map-designators
                hmi_interpreter-msg
                hmi_interpreter-srv
-               gazebo_msgs-srv
+               ;;gazebo_msgs-srv
                alexandria)
   :components
   ((:module "src"

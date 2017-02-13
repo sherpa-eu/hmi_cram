@@ -62,9 +62,13 @@
   <build_depend>rospy</build_depend>
   <build_depend>std_msgs</build_depend>
   <build_depend>hmi_interpreter</build_depend>
+  <build_depend>cram_sherpa_spatial_relations</build_depend>
+  <build_depend>cram_commander</build_depend>
+  <run_depend>cram_commander</run_depend>
+  <run_depend>cram_sherpa_spatial_relations</run_depend>
   <run_depend>hmi_interpreter</run_depend>
   <run_depend>alexandria</run_depend>
-  <run_depend>cram_beliefstate</run_depend>
+  <!--run_depend>cram_beliefstate</run_depend-->
   <run_depend>cram_bullet_reasoning_designators</run_depend>
   <run_depend>cram_bullet_reasoning</run_depend>
   <run_depend>cram_bullet_reasoning_belief_state</run_depend>
@@ -76,7 +80,7 @@
   <run_depend>cram_semantic_map_costmap</run_depend>
   <run_depend>cram_semantic_map_designators</run_depend>
   <run_depend>cram_spatial_relations_costmap</run_depend>
-  <run_depend>gazebo_msgs</run_depend>
+  <!--run_depend>gazebo_msgs</run_depend-->
   <run_depend>geometry_msgs</run_depend>
   <run_depend>message_runtime</run_depend>
   <run_depend>message_generation</run_depend>

@@ -35,7 +35,7 @@
         (elem '()))
     (dotimes (index (length poses-liste))
       (dotimes(in (length agent-elem))
-        (publish-pose (get-pose-by-elem (nth in agent-elem)) :id (+ 200 in))
+        (publish-pose (get-elem-pose (nth in agent-elem)) :id (+ 200 in))
         (publish-pose  (nth index poses-liste) :id (+ 3000 index))
 
         (cond ((and (equal T (check-distance (cl-transforms:origin (get-pose-by-elem (nth in agent-elem)))
@@ -53,10 +53,10 @@
                                                               (cl-transforms:origin pose))
                                                              (cl-transforms:y
                                                               (cl-transforms:origin pose))
-                                                             (+ 2 (cl-transforms:z
-                                                              (cl-transforms:origin pose))))
+                                                              (cl-transforms:z
+                                                              (cl-transforms:origin pose)))
                                (cl-transforms:orientation pose)))))
-    (format t "~a~%" liste)
+   ;; (format t "~a~%" liste)
     (nth 800 liste)))
 
 (defun square (n)
@@ -146,7 +146,7 @@
   (setf poslist (reverse poslist))
   (dotimes(test (length poslist))
     do  ;;(format t "test4 ~a~%" (nth test poslist))
-   (format t "test ~a~%" test)
+  ;; (format t "test ~a~%" test)
     (publish-pose (nth test poslist) :id (+  test 100)))
     ;;(format t "end of function~%"))
   ;;  )

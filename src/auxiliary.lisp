@@ -27,12 +27,19 @@
 ;;; POSSIBILITY OF SUCH DAMAGE.
 
 (in-package :hmi-cram)
+(defvar *sem-map* NIL)
+(defvar *tf* NIL)
+(defvar *pub* NIL)
 
 (defun tf-busy-genius-to-map ()
   (let ((var (cl-transforms:transform->pose (cl-tf:lookup-transform *tf* "map" "busy_genius"))))
     (publish-pose var :id 100000000 :zet 0.0)
    ;; (format t "pose busy_genius to map ~a~%" var)
     var))
+
+(defun get-elem-pose (name)
+  (cram-sherpa-spatial-relations::json-call-pose name))
+
 
 ;;
 ;; Get the position of the element out of semantic map

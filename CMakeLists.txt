@@ -6,6 +6,7 @@ project(hmi_cram)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   alexandria
+  cram_commander
   cram_beliefstate
   cram_bullet_reasoning_designators
   cram_bullet_reasoning
@@ -26,6 +27,7 @@ find_package(catkin REQUIRED COMPONENTS
   roslisp
   rospy
   std_msgs
+  cram_sherpa_spatial_relations
 )
 
 ## System dependencies are found with CMake's conventions
