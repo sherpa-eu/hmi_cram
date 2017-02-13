@@ -274,9 +274,9 @@
 
 
 (defun reset-all-services()
- (roslisp:wait-for-service "add_costmap_name" 10)
- (roslisp:call-service "add_costmap_name"
-                       'hmi_interpreter-srv:text_parser :goal "none")
+ ;; (roslisp:wait-for-service "add_costmap_name" 10)
+ ;; (roslisp:call-service "add_costmap_name"
+ ;;                       'hmi_interpreter-srv:text_parser :goal "none")
  (roslisp:wait-for-service "add_openEase_object" 10)
  (roslisp:call-service "add_openEase_object"
                        'hmi_interpreter-srv:text_parser :goal "none"))
@@ -323,10 +323,10 @@
                                                (not (string-equal "null" (second (first (first proplist)))))))) ;; if obj is not "null"
                                 (setf felem  (first (get-all-elems-front-agent-by-type
                                                      (second (first (first proplist))) viewpoint)))
-                                (roslisp:wait-for-service "add_costmap_name" 10)
-                                (setf pose 
-                                      (roslisp:call-service "add_costmap_name"
-                                                            'hmi_interpreter-srv:text_parser :goal felem))
+                                ;;(roslisp:wait-for-service "add_costmap_name" 10)
+                                ;;(setf pose 
+                                ;;      (roslisp:call-service "add_costmap_name"
+                                ;;                            'hmi_interpreter-srv:text_parser :goal felem))
                                 (setf tmpproplist (append tmpproplist
                                                           (list (list (first (first (first (last proplist))))
                                                                       felem)))))
@@ -394,21 +394,16 @@ desig))
 
 
 (defun reference-designators (desigs)
-  (format t "reference-designators ~a~%" desigs)
   (let((newliste '())
        (loc NIL)(pose NIL))
     (dotimes (index (length desigs))
-      (format t "index desigs ~a~%" (nth index desigs))
       (cond ((and (not (null (desig-prop-value (nth index desigs) :destination)))
                   (null (desig-prop-value (desig-prop-value (nth index desigs) :destination) :pose)))
-             (format t "123~%")
              (setf loc (desig-prop-value (nth index desigs) :destination))
              (roslisp:wait-for-service "add_costmap_name" 10)
              (setf pose 
                    (roslisp:call-service "add_costmap_name"
                                                             'hmi_interpreter-srv:text_parser :goal "get"))
-          ;;   (setf pose (get-elem-pose  loc))
-             (format t "reference ~a~%" pose)
              (setf newliste (append newliste
                                     (list (make-designator :action `((:to ,(desig-prop-value (nth index desigs) :to))
                                                                      (:actor ,(desig-prop-value (nth index desigs) :actor))
@@ -416,6 +411,5 @@ desig))
                                                                      (:destination
                                                                       ,(make-designator :location `((:viewpoint ,(desig-prop-value (desig-prop-value (nth index desigs) :destination) :viewpoint))
                                                                                                     (:pose ,pose))))))))))
-            (t (format t "hier~%")
-               (setf newliste (append newliste (list (nth index desigs)))))))
+            (t (setf newliste (append newliste (list (nth index desigs)))))))
     newliste))

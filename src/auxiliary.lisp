@@ -125,7 +125,6 @@
                          (json-prolog:prolog `("map_object_type" ?objs "http://knowrob.org/kb/knowrob.owl#PineTree"))))
                    (setf liste (append liste1 liste2)))
                 ((string-equal type "lake")
-                 (format t "lae is ~a~%" type)
                  (setf liste
                          (force-ll
                          (json-prolog:prolog `("map_object_type" ?objs "http://knowrob.org/kb/knowrob.owl#FrozenLake")))))
@@ -497,7 +496,6 @@
     (dotimes(index (length sem-keys))
       (if (string-equal type (get-type-by-elem (nth index sem-keys)))
           (setf liste (append (list (nth index sem-keys)) liste))))
-    ;;(format t "liste ~a~%"liste)
     (reverse liste)))
 
 (defun publish-body (pose)

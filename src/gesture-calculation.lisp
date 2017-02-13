@@ -29,22 +29,17 @@
 (in-package :hmi-cram)
 
 (defun get-pointed-elem-by-voice-type (pose type &optional (viewpoint "busy_genius"))
-  (format t "get-pointed-elem-by-voice-type~%")
   (let ((poses-liste (calculate-ray pose))
-        (agent-elem (get-front-elems-of-agent viewpoint)) ;;(get-elems-of-type type)
+        (agent-elem (get-all-elems-front-agent-by-type type viewpoint))
         (elem '()))
     (dotimes (index (length poses-liste))
       (dotimes(in (length agent-elem))
         (publish-pose (get-elem-pose (nth in agent-elem)) :id (+ 200 in))
         (publish-pose  (nth index poses-liste) :id (+ 3000 index))
-
-        (cond ((and (equal T (check-distance (cl-transforms:origin (get-pose-by-elem (nth in agent-elem)))
+        (cond ((equal T (check-distance (cl-transforms:origin (get-elem-pose (nth in agent-elem)))
                                              (cl-transforms:origin (nth index poses-liste))))
-                       (string-equal (get-type-by-elem (nth in agent-elem))
-                                     type))
-               (setf elem (append (list (nth in agent-elem)) elem))))))
-    (format t "elem ~a~%" elem)
-    (first (reverse (remove-duplicates elem)))))
+               (setf elem (append elem (list (nth in agent-elem))))))))
+    (first (remove-duplicates elem))))
         
 (defun give-pointed-direction (pose)
   (let ((liste (calculate-ray (cl-transforms:make-pose
@@ -79,7 +74,10 @@
 
 
 (defun calculate-ray (pose)
-  (let((poslist'()))
+  (let((poslist'())(posexyz NIL)(posex-yz NIL)(posex-y-z NIL)
+       (posexy-z NIL)(posex NIL)(posexz NIL)(posex-z NIL)
+       (posexy NIL)(posex-y NIL)(xyz NIL)(x-yz NIL)(xy-z NIL)
+       (x-y-z NIL)(x NIL)(xz NIL)(x-z NIL)(xy NIL)(x-y NIL))
        (publish-pose pose :id 1100)
     (loop for index from 3 to 200
           do (cl-tf:set-transform *tf* (cl-transforms-stamped:make-transform-stamped
@@ -143,9 +141,4 @@
              (setf poslist (append (list  (cl-transforms-stamped:pose-stamped->pose x-y)) poslist)))
   (setf poslist (reverse poslist))
   (dotimes(test (length poslist))
-    do  ;;(format t "test4 ~a~%" (nth test poslist))
-  ;; (format t "test ~a~%" test)
-    (publish-pose (nth test poslist) :id (+  test 100)))
-    ;;(format t "end of function~%"))
-  ;;  )
-    poslist))
+    do(publish-pose (nth test poslist) :id (+  test 100))) poslist)) 
