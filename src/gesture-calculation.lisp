@@ -47,7 +47,6 @@
     (first (reverse (remove-duplicates elem)))))
         
 (defun give-pointed-direction (pose)
-  (format t "give pointed direction~%")
   (let ((liste (calculate-ray (cl-transforms:make-pose
                                (cl-transforms:make-3d-vector (cl-transforms:x
                                                               (cl-transforms:origin pose))
@@ -56,7 +55,6 @@
                                                               (cl-transforms:z
                                                               (cl-transforms:origin pose)))
                                (cl-transforms:orientation pose)))))
-   ;; (format t "~a~%" liste)
     (nth 800 liste)))
 
 (defun square (n)
