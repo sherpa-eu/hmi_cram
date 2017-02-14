@@ -33,8 +33,6 @@
 
 (defun tf-busy-genius-to-map ()
   (let ((var (cl-transforms:transform->pose (cl-tf:lookup-transform *tf* "map" "busy_genius"))))
-   ;; (publish-pose var :id 100000000 :zet 0.0)
-   ;; (format t "pose busy_genius to map ~a~%" var)
     var))
 
 (defun tf-agent-to-map (name)
@@ -108,7 +106,49 @@
  ;;  ;;  (format t "~a~%" poses)
  ;;    (list (first  (split-sequence:split-sequence #\: (car poses))))))
 
-
+(defun get-all-elems-by-type (type)
+ (let((actlist '())
+       (poslist '()))
+       (if (json-prolog:check-connection)
+           (let*((human-pose (tf-busy-genius-to-map))
+                 (liste NIL)(liste1 NIL)(liste2 NIL)
+                 (unrealtype NIL))
+             (cond((string-equal type "tree")
+                   (setf liste1
+                         (force-ll
+                         (json-prolog:prolog `("map_object_type" ?objs "http://knowrob.org/kb/knowrob.owl#SnowTree"))))
+                   (setf liste2
+                         (force-ll
+                         (json-prolog:prolog `("map_object_type" ?objs "http://knowrob.org/kb/knowrob.owl#PineTree"))))
+                   (setf liste (append liste1 liste2)))
+                ((string-equal type "lake")
+                 (setf liste
+                         (force-ll
+                         (json-prolog:prolog `("map_object_type" ?objs "http://knowrob.org/kb/knowrob.owl#FrozenLake")))))
+                ((string-equal type "helipad")
+                 (setf liste
+                         (force-ll
+                         (json-prolog:prolog `("map_object_type" ?objs "http://knowrob.org/kb/knowrob.owl#Helipad")))))
+                (t
+                 (setf unrealtype (concatenate 'string "http://knowrob.org/kb/knowrob.owl#"
+                                               (string-capitalize type)))
+                 (setf liste (force-ll
+                         (json-prolog:prolog `("map_object_type" ?objs ,unrealtype))))))
+             (dotimes (index (length liste))
+               (let ((obj (second
+                           (split-sequence:split-sequence #\# 
+                                                          (remove #\' (symbol-name (cdar  (nth index liste))))))))
+                 (setf actlist (append actlist (list
+                                                (format NIL "~a:~a"
+                                                        obj
+                                                        (get-distance human-pose
+                                                                       (get-elem-pose
+                                                                        obj))))))))))
+    (setf actlist (remove-duplicates (sort-list actlist) :test #'equal))
+    (dotimes (jndex (length actlist))
+      (setf poslist (append poslist (list (first (split-sequence:split-sequence #\: (nth jndex actlist)))))))
+    poslist))
+  
 (defun get-all-elems-front-agent-by-type (type viewpoint)
   (let((actlist '())
        (poslist '()))
@@ -669,3 +709,44 @@
       (if (plusp (cl-transforms:x (cl-transforms:origin obj-pose)))
           (setf poses (append poses (list (nth index elem-list))))))
     (first poses)))
+
+
+(defun check-all-designators (desigs)
+  (let((var NIL))
+    (dotimes (index (length desigs))
+      (cond ((or (string-equal (desig-prop-value (nth index desigs) :to) "take-picture")
+                 (string-equal (desig-prop-value (nth index desigs) :to) "stop")
+                 (string-equal (desig-prop-value (nth index desigs) :to) "land")
+                 (string-equal (desig-prop-value (nth index desigs) :to) "show-picture"))
+             (setf var T))
+            ((and (string-equal (desig-prop-value (nth index desigs) :to) "mount")
+                  (not (null (desig-prop-value (nth index desigs) :agent))))
+             (setf var T))
+            ((and (string-equal (desig-prop-value (nth index desigs) :to) "scan")
+                  (not (null (desig-prop-value (nth index desigs) :agent))))
+             (setf var T))
+            ((and (string-equal (desig-prop-value (nth index desigs) :to) "look-for")
+                  (not (null (desig-prop-value (nth index desigs) :object))))
+             (setf var T))
+            ((and (string-equal (desig-prop-value (nth index desigs) :to) "come-back")
+                  (not (null (desig-prop-value (nth index desigs) :pose))))
+             (setf var T))
+            ((string-equal (desig-prop-value (nth index desigs) :to) "go")
+             (let*((loc (desig-prop-value (nth index desigs) :destination))
+                  (prop (desig:properties loc)))
+               (cond((and (assoc :pose prop)
+                          (not (null (desig-prop-value loc :pose))))
+                     (setf var T))
+                    ((or (assoc :next-to prop)
+                         (assoc :right prop)
+                         (assoc :left prop)
+                         (assoc :on prop)
+                         (assoc :behind prop))
+                     (if (or (not (null (desig-prop-value loc :next-to)))
+                             (not (null (desig-prop-value loc :right)))
+                             (not (null (desig-prop-value loc :left)))
+                             (not (null (desig-prop-value loc :on)))
+                             (not (null (desig-prop-value loc :left))))
+                         (setf var T))))))))
+    var))
+                  

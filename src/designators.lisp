@@ -93,7 +93,7 @@
               (string-equal "scan-bridge-area" action)
               (string-equal "scan-tunnel-area" action))
           (setf elem-name  (second (split-sequence:split-sequence #\- action)))
-          (setf elem-name (get-all-elems-front-agent-by-type elem-name viewpoint))
+          (setf elem-name (first (get-all-elems-front-agent-by-type elem-name viewpoint)))
           (setf desig (list (make-designator :action `((:to ,(set-keyword "scan"))
                                                        (:actor ,actor)
                                                        (:operator ,(set-keyword operator))
@@ -115,7 +115,6 @@
                                                        (:destination ,(make-designator :location `((:viewpoint ,viewpoint)
                                                                                           (:pose
                                                                                            ,(tf-busy-genius-to-map))))))))))
-                              ;;                                                             "busy_genius")))))))))
          ((or (string-equal "look-for" action)
               (string-equal "search-for" action))
           (setf desig (list (make-designator :action `((:to ,(set-keyword "look-for"))
@@ -194,7 +193,7 @@
         (obj NIL)
         (oe-object NIL)
         (propkeys (hmi_interpreter-msg:propkeys index)))
-    (roslisp:wait-for-service "add_costmap_name" 10)
+    (roslisp:wait-for-service "add_openEase_object" 10)
     (setf oe-object (slot-value
                      (roslisp:call-service "add_openEase_object"
                                            'hmi_interpreter-srv:text_parser :goal "get")
@@ -303,38 +302,27 @@
         (let* ((goal (desig-prop-value desig :destination))(felem NIL)(tmpproplist '())
                (proplist (desig:properties goal)))
           (cond ((= 1 (length proplist))
-                 (cond((equal (type-of (second (first (last proplist)))) 'cl-transforms:pose)  
+                 (cond((equal (type-of (second (first (last proplist)))) 'cl-transforms:pose)
                        (setf tmpproplist
                              (append tmpproplist
                                      (list (list (first (first (first (last proplist))))
                                                  (second (first (first (last proplist)))))))))
-                      (t 
-                       (setf posy (get-elem-pose (second (first (first (last proplist))))))
+                      (t (setf posy (get-elem-pose (second (first (first (last proplist))))))
                          (cond ((not (null posy))
                                 (setf felem (second (first (first (last proplist)))))
                                 (setf pose posy)                      
                                 (setf tmpproplist (append tmpproplist
                                                           (list (list :pose pose)))))
-                                                                   ;;   felem)))))
-                               ((and (null (get-elem-pose (second (first (first proplist))))) ;;;if object is not-name
-                                     (and (or (not (null (second (first (first proplist))))) ;; if obj is not NIL or
-                                              (not (string-equal "null" (second (first (first proplist)))))) ;; if obj is not "null"
-                                          (and (not (null (second (first (first proplist))))) ;;if obj is not NIL and
-                                               (not (string-equal "null" (second (first (first proplist)))))))) ;; if obj is not "null"
+                               (t
                                 (setf felem  (first (get-all-elems-front-agent-by-type
-                                                     (second (first (first proplist))) viewpoint)))
-                                ;;(roslisp:wait-for-service "add_costmap_name" 10)
-                                ;;(setf pose 
-                                ;;      (roslisp:call-service "add_costmap_name"
-                                ;;                            'hmi_interpreter-srv:text_parser :goal felem))
+                                                     (second (first (first (last proplist)))) viewpoint)))
+                                (if (null felem)
+                                    (setf felem (first (get-all-elems-by-type  (second (first (first (last proplist))))))))
                                 (setf tmpproplist (append tmpproplist
                                                           (list (list (first (first (first (last proplist))))
-                                                                      felem)))))
-                               (t
-                                (setf tmpproplist (append tmpproplist
-                                                            (list (list (first (first (first (last proplist))))
-                                                                        felem)))))))))
-                ((= 2 (length proplist))
+                                                                      felem)))))))))
+
+                                          ((= 2 (length proplist))
                  (setf tmpproplist (add-semantics-two-desigs proplist viewpoint))))
           (setf tmpproplist (append (list (list :viewpoint (desig-prop-value desig :viewpoint))) tmpproplist))
           (if (or (not (string-equal "robot" (desig-prop-value desig :actor)))

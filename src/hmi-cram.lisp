@@ -24,12 +24,8 @@
 
 (in-package :hmi-cram)
 
-
-
-
-
 ;; ROSSERVICE FOR CALLING HMI-CRAM
-(defun hmi-cram ()
+(defun hmi-main ()
   (hmi-cram-call))
 
 (defun hmi-cram-call ()
@@ -47,8 +43,13 @@
                                             (desig-prop-value (nth index create_desig) :viewpoint)
                                             (nth index create_desig))))))
     (reset-all-services)
-    
-    (format t "[(CRAM-REASON-DESIG) INFO] DESIG: ~a~%" semantic_desig)
+    (setf tmp (check-all-designators semantic_desig))
+    (format t "tmp is ~a~%" tmp)
+    (cond((null tmp)
+          (format t "[(CRAM-REASON-DESIG) INFO] DESIG: ~a~%" semantic_desig)
+          (roslisp:make-response :result "Done!"))
+         (t
+          (format t "[(CRAM-REASON-DESIG) INFO] DESIG: ~a~%" semantic_desig)
   ;; (let ((thread-handle NIL))
   ;;   (unwind-protect 
    ;;       (progn 
@@ -57,7 +58,7 @@
     ;;                (commander:human-command (first semantic_desig)))))
    ;;         (sleep 5.0))
  ;;      (sb-thread:terminate-thread thread-handle)))      
-   (roslisp:make-response :result "Done!")))
+          (roslisp:make-response :result "Done!")))))
 
 
 (defun talker ()
@@ -82,4 +83,4 @@
 ;;       (cond((and (not (search "MountainRoad" (nth index sem-keys)))
 ;;                  (<= index 2)) 
 ;;             (format t "pose ~a and keys ~a~%" (get-pose-by-elem (nth index sem-keys))(nth index sem-keys))
-;;       (publish-box (get-pose-by-elem (nth index sem-keys)) (get-bbox-by-elem (nth index sem-keys)) :id (+ 10000 index)))))))
+;;       (publish-bo-x (get-pose-by-elem (nth index sem-keys)) (get-bbox-by-elem (nth index sem-keys)) :id (+ 10000 index)))))))
