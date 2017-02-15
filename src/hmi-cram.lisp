@@ -36,33 +36,35 @@
 
 (roslisp:def-service-callback hmi_interpreter-srv::HMIDesig (desigs)
   (let ((create_desig (create-desig-based-on-hmi-call desigs))
-       (semantic_desig '()))
+       (semantic_desig '())(tmp NIL))
       (dotimes (index (length create_desig))
         (setf semantic_desig
               (append semantic_desig (list (add-semantic-to-desigs
                                             (desig-prop-value (nth index create_desig) :viewpoint)
                                             (nth index create_desig))))))
-    (reset-all-services)
+    
     (setf tmp (check-all-designators semantic_desig))
-    (format t "tmp is ~a~%" tmp)
     (cond((null tmp)
           (format t "[(CRAM-REASON-DESIG) INFO] DESIG: ~a~%" semantic_desig)
-          (roslisp:make-response :result "Done!"))
+          (roslisp:make-response :result "Done!")
+          (reset-all-services))
          (t
+          (format t "tetete ~%")
+          (setf semantic_desig (check-resolve-designators semantic_desig))
           (format t "[(CRAM-REASON-DESIG) INFO] DESIG: ~a~%" semantic_desig)
-  ;; (let ((thread-handle NIL))
-  ;;   (unwind-protect 
-   ;;       (progn 
-;;(setf thread-handle (sb-thread:make-threadq
-  ;;                   (lambda ()
-    ;;                (commander:human-command (first semantic_desig)))))
-   ;;         (sleep 5.0))
- ;;      (sb-thread:terminate-thread thread-handle)))      
+          ;; (let ((thread-handle NIL))
+          ;;   (unwind-protect 
+          ;;       (progn 
+          ;;(setf thread-handle (sb-thread:make-threadq
+          ;;                   (lambda ()
+          ;;  (commander:human-command (first semantic_desig))
+          ;;         (sleep 5.0))
+          ;;      (sb-thread:terminate-thread thread-handle)))      
+          (reset-all-services)
           (roslisp:make-response :result "Done!")))))
 
 
 (defun talker ()
- ;; (sleep 3.0)
     (let((pub (roslisp:advertise  "/speaker_on" "std_msgs/String")))
       (roslisp:publish-msg pub :data (format nil "~%"))))
 
@@ -72,15 +74,3 @@
 
 (roslisp-utilities:register-ros-init-function init-tf)
 
-;; (defun display-semantic-map ()
-;;   (if (null *sem-map*)
-;;       (setf *sem-map* (sem-map-utils:get-semantic-map)))
-;;  ;; (format t "display function~%")
-;;   (let*((sem-hash (slot-value *sem-map* 'sem-map-utils:parts))
-;;         (sem-keys (hash-table-keys sem-hash)))
-;;     (dotimes (index (length sem-keys))
-;;     ;;  (publish-box (cl-transforms:make-identity-pose) :id 200)
-;;       (cond((and (not (search "MountainRoad" (nth index sem-keys)))
-;;                  (<= index 2)) 
-;;             (format t "pose ~a and keys ~a~%" (get-pose-by-elem (nth index sem-keys))(nth index sem-keys))
-;;       (publish-bo-x (get-pose-by-elem (nth index sem-keys)) (get-bbox-by-elem (nth index sem-keys)) :id (+ 10000 index)))))))

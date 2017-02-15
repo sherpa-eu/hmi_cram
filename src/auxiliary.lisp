@@ -121,6 +121,10 @@
                          (force-ll
                          (json-prolog:prolog `("map_object_type" ?objs "http://knowrob.org/kb/knowrob.owl#PineTree"))))
                    (setf liste (append liste1 liste2)))
+                  ((string-equal type "house")
+                   (setf liste
+                         (force-ll
+                         (json-prolog:prolog `("map_object_type" ?objs "http://knowrob.org/kb/knowrob.owl#Cottage")))))
                 ((string-equal type "lake")
                  (setf liste
                          (force-ll
@@ -164,6 +168,10 @@
                          (force-ll
                          (json-prolog:prolog `("map_object_type" ?objs "http://knowrob.org/kb/knowrob.owl#PineTree"))))
                    (setf liste (append liste1 liste2)))
+                  ((string-equal type "house")
+                   (setf liste
+                         (force-ll
+                         (json-prolog:prolog `("map_object_type" ?objs "http://knowrob.org/kb/knowrob.owl#Cottage")))))
                 ((string-equal type "lake")
                  (setf liste
                          (force-ll
@@ -692,7 +700,6 @@
                                                           (cl-transforms:make-identity-rotation)))
           (setf result (cl-tf:transform-pose *tf* :pose pose :target-frame "map"))))
     (publish-pose (cl-transforms-stamped:pose-stamped->pose result) :id 100)
-    ;;(format t "result ~a~%" result)
     result))
 
 (defun get-specific-elem (name viewpoint)
@@ -740,12 +747,12 @@
                     ((or (assoc :next-to prop)
                          (assoc :right prop)
                          (assoc :left prop)
-                         (assoc :on prop)
+                         (assoc :ontop prop)
                          (assoc :behind prop))
                      (if (or (not (null (desig-prop-value loc :next-to)))
                              (not (null (desig-prop-value loc :right)))
                              (not (null (desig-prop-value loc :left)))
-                             (not (null (desig-prop-value loc :on)))
+                             (not (null (desig-prop-value loc :ontop)))
                              (not (null (desig-prop-value loc :left))))
                          (setf var T))))))))
     var))

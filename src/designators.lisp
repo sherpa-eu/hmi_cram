@@ -87,13 +87,19 @@
 
 
 (defun make-designator-with-adapted-actions (action actor operator viewpoint objname loc_desig)
-  (let((desig NIL)
+  (let((desig NIL)(test1 NIL)(test2 NIL)
        (elem-name NIL))
     (cond((or (string-equal "scan-lake-area" action)
               (string-equal "scan-bridge-area" action)
               (string-equal "scan-tunnel-area" action))
           (setf elem-name  (second (split-sequence:split-sequence #\- action)))
-          (setf elem-name (first (get-all-elems-front-agent-by-type elem-name viewpoint)))
+          (setf test1 (first (get-all-elems-front-agent-by-type elem-name viewpoint)))
+          (setf test2 (first (get-all-elems-by-type elem-name)))
+          (if (string-equal test1 test2)
+              (setf elem-name test1)
+              (setf elem-name test2))
+          (format t "elemname ~a~%" elem-name)
+         ;; (setf elem-name (first (get-all-elems-front-agent-by-type elem-name viewpoint)))
           (setf desig (list (make-designator :action `((:to ,(set-keyword "scan"))
                                                        (:actor ,actor)
                                                        (:operator ,(set-keyword operator))
@@ -254,7 +260,9 @@
               (if (null obj)
                   (setf obj object))
               (if (string-equal spatial "to")
-                  (setf spatial "next-to"))
+		  (if (string-equal "bridge" object)
+		      (setf spatial "ontop")
+		      (setf spatial "next-to")))
               (setf property-list (append (list  (list 
                                                        (list (set-keyword spatial) obj)
                                                        (list :color color)
@@ -273,9 +281,9 @@
 
 
 (defun reset-all-services()
- ;; (roslisp:wait-for-service "add_costmap_name" 10)
- ;; (roslisp:call-service "add_costmap_name"
- ;;                       'hmi_interpreter-srv:text_parser :goal "none")
+  (roslisp:wait-for-service "add_costmap_name" 10)
+  (roslisp:call-service "add_costmap_name"
+                        'hmi_interpreter-srv:text_parser :goal "none")
  (roslisp:wait-for-service "add_openEase_object" 10)
  (roslisp:call-service "add_openEase_object"
                        'hmi_interpreter-srv:text_parser :goal "none"))
@@ -283,8 +291,9 @@
   
   
 (defun add-semantic-to-desigs (viewpoint desig)
+  (format t "~a~%" desig)
   (let((actor NIL)
-       (posy NIL)
+       (posy NIL)(test1 NIL)(test2 NIL)
        (pose NIL))
   (cond((and (null (desig-prop-value desig :destination))
              (null (desig-prop-value desig :area))
@@ -314,10 +323,19 @@
                                 (setf tmpproplist (append tmpproplist
                                                           (list (list :pose pose)))))
                                (t
-                                (setf felem  (first (get-all-elems-front-agent-by-type
+                                (setf test1 (first (get-all-elems-front-agent-by-type
                                                      (second (first (first (last proplist)))) viewpoint)))
+                                (setf test2 (first (get-all-elems-by-type 
+                                                     (second (first (first (last proplist)))))))
+                                (if (string-equal test1 test2)
+                                    (setf felem test1)
+                                    (setf felem test2))
+                               ;; (setf felem  (first (get-all-elems-front-agent-by-type
+                                ;;                     (second (first (first (last proplist)))) viewpoint)))
                                 (if (null felem)
                                     (setf felem (first (get-all-elems-by-type  (second (first (first (last proplist))))))))
+                                (roslisp:wait-for-service "add_costmap_name" 10)
+                                (roslisp:call-service "add_costmap_name" 'hmi_interpreter-srv:text_parser :goal felem)
                                 (setf tmpproplist (append tmpproplist
                                                           (list (list (first (first (first (last proplist))))
                                                                       felem)))))))))
@@ -380,24 +398,25 @@ desig))
     tmpproplist))
 
 
-
-(defun reference-designators (desigs)
-  (let((newliste '())
-       (loc NIL)(pose NIL))
+(defun check-resolve-designators (desigs)
+  
+  (let((liste NIL)
+       (elem NIL))
+    (roslisp:wait-for-service "add_costmap_name" 10)
+  (setf elem (slot-value (roslisp:call-service "add_costmap_name"
+                        'hmi_interpreter-srv:text_parser :goal "get") 'hmi_interpreter-srv:result))
     (dotimes (index (length desigs))
-      (cond ((and (not (null (desig-prop-value (nth index desigs) :destination)))
-                  (null (desig-prop-value (desig-prop-value (nth index desigs) :destination) :pose)))
-             (setf loc (desig-prop-value (nth index desigs) :destination))
-             (roslisp:wait-for-service "add_costmap_name" 10)
-             (setf pose 
-                   (roslisp:call-service "add_costmap_name"
-                                                            'hmi_interpreter-srv:text_parser :goal "get"))
-             (setf newliste (append newliste
-                                    (list (make-designator :action `((:to ,(desig-prop-value (nth index desigs) :to))
-                                                                     (:actor ,(desig-prop-value (nth index desigs) :actor))
-                                                                     (:operator ,(desig-prop-value (nth index desigs) :operator))
-                                                                     (:destination
-                                                                      ,(make-designator :location `((:viewpoint ,(desig-prop-value (desig-prop-value (nth index desigs) :destination) :viewpoint))
-                                                                                                    (:pose ,pose))))))))))
-            (t (setf newliste (append newliste (list (nth index desigs)))))))
-    newliste))
+      (cond ((and (desig-prop-value (nth index desigs) :destination)
+                  (not (desig-prop-value (desig-prop-value (nth index desigs) :destination) :pose)))
+             (if(not (null (resolve-designator (desig-prop-value (nth index desigs) :destination) t)))
+                 (setf liste (append liste (list (nth index desigs))))
+                 (setf liste (append liste
+                                     (list
+                                      (make-designator :action `((:to ,(desig-prop-value (nth index desigs) :to))
+                                                                 (:actor ,(desig-prop-value (nth index desigs) :actor))
+                                                                 (:operator ,(desig-prop-value (nth index desigs) :operator))
+                                                                 (:destination ,(make-designator :location `((:viewpoint ,(desig-prop-value (desig-prop-value (nth index desigs) :destination) :viewpoint))
+                                                                                                             (:pose ,(get-elem-pose elem)))))))))) (format t "liste ~a~%" liste))))
+            (t(format t "hier~%")
+             (setf liste (append liste (list (nth index desigs)))))))
+    liste))

@@ -29,12 +29,9 @@
 (in-package :hmi-cram)
 
 (defun get-pointed-elem-by-voice-type (pose type &optional (viewpoint "busy_genius"))
-  (format t "get-pointed-elem-by-voice-type~%")
-  (format t "~a ~a~%" pose type)
   (let ((poses-liste (calculate-ray pose))
         (agent-elem (get-all-elems-front-agent-by-type type viewpoint))
         (elem '()))
-    (format t "agent-elem ~a~%" agent-elem)
     (dotimes (index (length poses-liste))
       (dotimes(in (length agent-elem))
         (cram-sherpa-spatial-relations::display-box (get-elem-pose (nth in agent-elem)) (nth in agent-elem))
