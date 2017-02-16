@@ -421,7 +421,7 @@
         (all (append (append (append (append (append (append (append '() (list fsec)) (list forw2)) (list backw2)) (list right2)) (list left2)) (list up2)) (list down2)))
         (value NIL))
     (dotimes(index (length all))
-      (cond ((and (>= 2.0 (nth index all))
+      (cond ((and (>= 50.0 (nth index all))
                   (null value))
              (setf value T))))
   value))
