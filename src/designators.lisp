@@ -398,6 +398,29 @@ desig))
     tmpproplist))
 
 
+(defun check-resolve-desigs-pose(desigs)
+ (let((liste NIL)
+       (elem NIL))
+    (roslisp:wait-for-service "add_costmap_name" 10)
+  (setf elem (slot-value (roslisp:call-service "add_costmap_name"
+                        'hmi_interpreter-srv:text_parser :goal "get") 'hmi_interpreter-srv:result))
+(dotimes (index (length desigs))
+      (cond ((and (desig-prop-value (nth index desigs) :destination)
+                  (not (desig-prop-value (desig-prop-value (nth index desigs) :destination) :pose)))
+            ;; (if(not (equal NIL (resolve-designator (desig-prop-value (nth index desigs) :destination) t)))
+                 ;;(setf liste (append liste (list (nth index desigs))))
+                 (setf liste (append liste
+                                     (list
+                                      (make-designator :action `((:to ,(desig-prop-value (nth index desigs) :to))
+                                                                 (:actor ,(desig-prop-value (nth index desigs) :actor))
+                                                                 (:operator ,(desig-prop-value (nth index desigs) :operator))
+                                                                 (:destination ,(make-designator :location `((:viewpoint ,(desig-prop-value (desig-prop-value (nth index desigs) :destination) :viewpoint))
+                                                                                                             (:pose ,(get-elem-pose elem)))))))))))
+            (t(format t "hier~%")
+             (setf liste (append liste (list (nth index desigs)))))))
+    liste))
+
+
 (defun check-resolve-designators (desigs)
   
   (let((liste NIL)
