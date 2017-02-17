@@ -47,14 +47,14 @@
                hmi_interpreter-msg
                hmi_interpreter-srv
                ;;gazebo_msgs-srv
-               alexandria)
+               alexandria
+               geometry_msgs-msg
+               std_msgs-msg)
   :components
   ((:module "src"
     :components
     ((:file "package")
-     (:file "hmi-cram" :depends-on ("package" "designators" "gesture-calculation" "auxiliary"))
      (:file "auxiliary" :depends-on ("package"))
-     (:file "gesture-calculation" :depends-on ("package"))
+     (:file "gesture-calculation" :depends-on ("package" "auxiliary"))
      (:file "designators" :depends-on ("package" "gesture-calculation"))
-
-))))
+     (:file "hmi-cram" :depends-on ("package" "designators" "gesture-calculation" "auxiliary"))))))
