@@ -42,24 +42,22 @@
               (append semantic_desig (list (add-semantic-to-desigs
                                             (desig-prop-value (nth index create_desig) :viewpoint)
                                             (nth index create_desig))))))
-    
+    (format t "semantic_desig ~a~%" semantic_desig)
     (setf tmp (check-all-designators semantic_desig))
     (cond((null tmp)
           (format t "[(CRAM-REASON-DESIG) INFO] DESIG: ~a~%" semantic_desig)
           (roslisp:make-response :result "Done!")
           (reset-all-services))
          (t
-          (format t "tetete ~%")
-        ;;  (setf semantic_desig (check-resolve-designators semantic_desig))
           (setf semantic_desig (check-resolve-desigs-pose semantic_desig))
-          (format t "[(CRAM-REASON-DESIG) INFO] DESIG: ~a~%" semantic_desig)
+          (format t "[(CRAM-REASON-DESIG) INFO] DESIG-0: ~a~%" semantic_desig)
           ;; (let ((thread-handle NIL))
           ;;   (unwind-protect 
           ;;       (progn 
           ;;(setf thread-handle (sb-thread:make-threadq
           ;;                   (lambda ()
           (setf robots-common::*logging-enabled* t)
-          (commander:human-command (first semantic_desig))
+      ;;    (commander:human-command (first semantic_desig))
           ;;         (sleep 5.0))
           ;;      (sb-thread:terminate-thread thread-handle)))      
           (reset-all-services)

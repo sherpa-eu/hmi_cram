@@ -152,7 +152,7 @@
   (format t "[(CRAM-CREATE-DESIG) INFO] DESIG: ~a~%" desigs)
   (let ((act-list '())
         (action-list '())
-        (actor NIL)
+        (actor NIL) (obj NIL)
         (flist NIL))
     (loop for index being the elements of desigs
           do (if (string-equal "go-there" (std_msgs-msg:data
@@ -162,6 +162,15 @@
     (dotimes (index (length action-list))
       (let((pose NIL))
         (cond((and (not (null (desig-prop-value (nth index action-list) :destination)))
+                (desig-prop-value (desig-prop-value (nth index action-list) :destination) :of))
+              (setf obj (desig-prop-value (desig-prop-value (nth index action-list) :destination) :of))
+              (setf act-list (append act-list (make-designator :action `((:to ,(desig-prop-value (nth index action-list) :to))
+                                                                         (:actor ,actor)
+                                                                         (:operator ,(desig-prop-value (nth index action-list) :operator))
+                                                                         (:destination
+                                                                          ,(make-designator :location `((:viewpoint ,(desig-prop-value (nth index action-list) :viewpoint))
+                                                                                                        (:of ,obj)))))))))              
+          ((and (not (null (desig-prop-value (nth index action-list) :destination)))
                    (null (desig-prop-value (desig-prop-value (nth index action-list) :destination) :pose)))
               (setf flist (first (first (desig:properties (desig-prop-value (nth index action-list) :destination)))))           
               (cond((string-equal (second flist) "null")
@@ -260,9 +269,12 @@
               (if (null obj)
                   (setf obj object))
               (if (string-equal spatial "to")
-		  (if (string-equal "bridge" object)
-		      (setf spatial "ontop")
-		      (setf spatial "next-to")))
+                  (if (string-equal "bridge" object)
+                      (setf spatial "ontop")
+                      (if (or (string-equal "victim" object)
+                              (string-equal "kite" object))
+                          (setf spatial "of")))
+                  (setf spatial "next-to"))
               (setf property-list (append (list  (list 
                                                        (list (set-keyword spatial) obj)
                                                        (list :color color)
@@ -291,7 +303,7 @@
   
   
 (defun add-semantic-to-desigs (viewpoint desig)
-  (format t "~a~%" desig)
+  (format t "add semantics ~a~%" desig)
   (let((actor NIL)
        (posy NIL)(test1 NIL)(test2 NIL)
        (pose NIL))
@@ -322,6 +334,12 @@
                                 (setf pose posy)                      
                                 (setf tmpproplist (append tmpproplist
                                                           (list (list :pose pose)))))
+                               ((or (string-equal "kite" (second (first (first (last proplist)))))
+                                    (string-equal "victim" (second (first (first (last proplist))))))
+                                (setf tmpproplist (append tmpproplist
+                                                          (list (list (first (first (first (last proplist))))
+                                                                      (set-keyword (second (first (first (last proplist))))))))))
+                                
                                (t
                                 (setf test1 (first (get-all-elems-front-agent-by-type
                                                      (second (first (first (last proplist)))) viewpoint)))
@@ -406,6 +424,9 @@ desig))
                         'hmi_interpreter-srv:text_parser :goal "get") 'hmi_interpreter-srv:result))
 (dotimes (index (length desigs))
       (cond ((and (desig-prop-value (nth index desigs) :destination)
+                  (assoc :of (desig:properties (desig-prop-value (nth index desigs) :destination))))
+             (setf liste (append liste (list (nth index desigs)))))
+        ((and (desig-prop-value (nth index desigs) :destination)
                   (not (desig-prop-value (desig-prop-value (nth index desigs) :destination) :pose)))
             ;; (if(not (equal NIL (resolve-designator (desig-prop-value (nth index desigs) :destination) t)))
                  ;;(setf liste (append liste (list (nth index desigs))))
