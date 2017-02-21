@@ -49,6 +49,7 @@
           (roslisp:make-response :result "Done!")
           (reset-all-services))
          (t
+          ;;(setf semantic_desig (check-resolve-designators semantic_desig))
           (setf semantic_desig (check-resolve-desigs-pose semantic_desig))
           (format t "[(CRAM-REASON-DESIG) INFO] DESIG-0: ~a~%" semantic_desig)
           ;; (let ((thread-handle NIL))
