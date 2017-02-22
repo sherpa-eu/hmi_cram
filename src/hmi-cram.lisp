@@ -42,7 +42,6 @@
               (append semantic_desig (list (add-semantic-to-desigs
                                             (desig-prop-value (nth index create_desig) :viewpoint)
                                             (nth index create_desig))))))
-    (format t "semantic_desig ~a~%" semantic_desig)
     (setf tmp (check-all-designators semantic_desig))
     (cond((null tmp)
           (format t "[(CRAM-REASON-DESIG) INFO] DESIG: ~a~%" semantic_desig)
@@ -58,7 +57,7 @@
           ;;(setf thread-handle (sb-thread:make-threadq
           ;;                   (lambda ()
           (setf robots-common::*logging-enabled* t)
-      ;;    (commander:human-command (first semantic_desig))
+          ;;(commander:human-command (first semantic_desig))
           ;;         (sleep 5.0))
           ;;      (sb-thread:terminate-thread thread-handle)))      
           (reset-all-services)
@@ -69,9 +68,9 @@
     (let((pub (roslisp:advertise  "/speaker_on" "std_msgs/String")))
       (roslisp:publish-msg pub :data (format nil "~%"))))
 
-(defun init-tf ()
-  (setf *tf* (make-instance 'cl-tf:transform-listener))
-  (setf *pub* (cl-tf:make-transform-broadcaster)))
+;; (defun init-tf ()
+;;   (setf *tf* (make-instance 'cl-tf:transform-listener))
+;;   (setf *pub* (cl-tf:make-transform-broadcaster)))
 
-(roslisp-utilities:register-ros-init-function init-tf)
+;; (roslisp-utilities:register-ros-init-function init-tf)
 

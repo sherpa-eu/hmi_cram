@@ -92,7 +92,7 @@
        (x-y-z NIL)(x NIL)(xz NIL)(x-z NIL)(xy NIL)(x-y NIL))
        (publish-pose pose :id 1100)
     (loop for index from 3 to 200
-          do (cl-tf:set-transform *tf* (cl-transforms-stamped:make-transform-stamped
+          do (cl-tf:set-transform cram-sherpa-spatial-relations::*tf*  (cl-transforms-stamped:make-transform-stamped
                                         "map" "gesture"
                                         (roslisp:ros-time)
                                         (cl-transforms:origin pose)
@@ -133,15 +133,15 @@
                             "gesture" 0.0
                             (cl-transforms:make-3d-vector index -1 0)
                             (cl-transforms:make-identity-rotation)))  
-             (setf xyz  (cl-transforms-stamped:pose-stamped->pose (cl-tf:transform-pose *tf* :pose posexyz :target-frame "map")))
-             (setf x-yz (cl-transforms-stamped:pose-stamped->pose (cl-tf:transform-pose *tf* :pose posex-yz :target-frame "map")))
-             (setf x-y-z  (cl-transforms-stamped:pose-stamped->pose (cl-tf:transform-pose *tf* :pose posex-y-z :target-frame "map")))
-             (setf xy-z  (cl-transforms-stamped:pose-stamped->pose (cl-tf:transform-pose *tf* :pose posexy-z :target-frame "map")))
-             (setf x (cl-transforms-stamped:pose-stamped->pose (cl-tf:transform-pose *tf* :pose posex :target-frame "map")))
-             (setf xz (cl-transforms-stamped:pose-stamped->pose (cl-tf:transform-pose *tf* :pose posexz :target-frame "map")))
-             (setf x-z (cl-transforms-stamped:pose-stamped->pose (cl-tf:transform-pose *tf* :pose posex-z :target-frame "map")))
-             (setf xy (cl-transforms-stamped:pose-stamped->pose (cl-tf:transform-pose *tf* :pose posexy :target-frame "map")))
-             (setf x-y (cl-transforms-stamped:pose-stamped->pose (cl-tf:transform-pose *tf* :pose posex-y :target-frame "map")))     
+             (setf xyz  (cl-transforms-stamped:pose-stamped->pose (cl-tf:transform-pose cram-sherpa-spatial-relations::*tf* :pose posexyz :target-frame "map")))
+             (setf x-yz (cl-transforms-stamped:pose-stamped->pose (cl-tf:transform-pose cram-sherpa-spatial-relations::*tf* :pose posex-yz :target-frame "map")))
+             (setf x-y-z  (cl-transforms-stamped:pose-stamped->pose (cl-tf:transform-pose cram-sherpa-spatial-relations::*tf* :pose posex-y-z :target-frame "map")))
+             (setf xy-z  (cl-transforms-stamped:pose-stamped->pose (cl-tf:transform-pose cram-sherpa-spatial-relations::*tf* :pose posexy-z :target-frame "map")))
+             (setf x (cl-transforms-stamped:pose-stamped->pose (cl-tf:transform-pose cram-sherpa-spatial-relations::*tf* :pose posex :target-frame "map")))
+             (setf xz (cl-transforms-stamped:pose-stamped->pose (cl-tf:transform-pose cram-sherpa-spatial-relations::*tf* :pose posexz :target-frame "map")))
+             (setf x-z (cl-transforms-stamped:pose-stamped->pose (cl-tf:transform-pose cram-sherpa-spatial-relations::*tf* :pose posex-z :target-frame "map")))
+             (setf xy (cl-transforms-stamped:pose-stamped->pose (cl-tf:transform-pose cram-sherpa-spatial-relations::*tf* :pose posexy :target-frame "map")))
+             (setf x-y (cl-transforms-stamped:pose-stamped->pose (cl-tf:transform-pose cram-sherpa-spatial-relations::*tf* :pose posex-y :target-frame "map")))     
              (setf poslist (append (list  (cl-transforms-stamped:pose-stamped->pose xyz)) poslist))
              (setf poslist (append (list  (cl-transforms-stamped:pose-stamped->pose x-yz)) poslist))
              (setf poslist (append (list  (cl-transforms-stamped:pose-stamped->pose x-y-z)) poslist))

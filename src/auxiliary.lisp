@@ -28,21 +28,22 @@
 
 (in-package :hmi-cram)
 (defvar *sem-map* NIL)
-(defvar *tf* NIL)
 (defvar *pub* NIL)
 
 (defun tf-busy-genius-to-map ()
-  (let ((var (cl-transforms:transform->pose (cl-tf:lookup-transform *tf* "map" "busy_genius"))))
+  (let ((var (cl-transforms:transform->pose (cl-tf:lookup-transform cram-sherpa-spatial-relations::*tf*  "map" "busy_genius"))))
     var))
 
 (defun tf-agent-to-map (name)
   (let* ((var (concatenate 'string name "/base_link"))
-        (pose (cl-transforms:transform->pose (cl-tf:lookup-transform *tf* "map" var))))
+        (pose (cl-transforms:transform->pose (cl-tf:lookup-transform cram-sherpa-spatial-relations::*tf* "map" var))))
     pose))
 
 (defun get-elem-pose (name)
   (cram-sherpa-spatial-relations::json-call-pose name))
 
+(defun get-elem-dimension (name)
+  (cram-sherpa-spatial-relations::json-call-dim name))
 
 ;;
 ;; Get the position of the element out of semantic map
@@ -133,6 +134,10 @@
                  (setf liste
                          (force-ll
                          (json-prolog:prolog `("map_object_type" ?objs "http://knowrob.org/kb/knowrob.owl#Helipad")))))
+                ((string-equal type "road")
+                 (setf liste
+                         (force-ll
+                         (json-prolog:prolog `("map_object_type" ?objs "http://knowrob.org/kb/knowrob.owl#RoadSegment")))))
                 (t
                  (setf unrealtype (concatenate 'string "http://knowrob.org/kb/knowrob.owl#"
                                                (string-capitalize type)))
@@ -236,6 +241,14 @@
              (setf tmp NIL))))        
     tmp))
 
+;; (defun get-elem-depend-agent-pose (elemname &optional (viewpoint "busy_genius"))
+;;   (let*((pose (get-elem-pose elemname))
+;;         (pub NIL))
+;;     (if (not (string-equal viewpoint "busy_genius"))
+;;         (setf viewpoint (format NIL "~a/base_link" viewpoint)))
+;;     (setf pub (cl-tf:set-transform *tf* (cl-transforms-stamped:make-transform-stamped "map" elemname (roslisp:ros-time) (cl-transforms:origin pose) (cl-transforms:orientation pose))))
+;;     (cl-transforms-stamped:transform->pose (cl-tf:lookup-transform *tf* viewpoint elemname))))
+
 (defun get-elems-in-tf (&optional (viewpoint "busy_genius"))
   (if (null *sem-map*)
       (setf *sem-map* (sem-map-utils:get-semantic-map)))
@@ -250,8 +263,8 @@
         (setf viewpoint (format NIL "~a/base_link" viewpoint)))
     (dotimes (index (length sem-keys))
       (let*((pose (get-pose-by-elem (nth index sem-keys)))
-            (pub (cl-tf:set-transform *tf* (cl-transforms-stamped:make-transform-stamped "map" (nth index sem-keys) (roslisp:ros-time) (cl-transforms:origin pose) (cl-transforms:orientation pose))))
-            (obj-pose (cl-transforms-stamped:transform->pose (cl-tf:lookup-transform *tf* viewpoint (nth index sem-keys)))))
+            (pub (cl-tf:set-transform cram-sherpa-spatial-relations::*tf* (cl-transforms-stamped:make-transform-stamped "map" (nth index sem-keys) (roslisp:ros-time) (cl-transforms:origin pose) (cl-transforms:orientation pose))))
+            (obj-pose (cl-transforms-stamped:transform->pose (cl-tf:lookup-transform cram-sherpa-spatial-relations::*tf* viewpoint (nth index sem-keys)))))
         (setf (gethash (nth index sem-keys) new-hash) obj-pose)))
     (copy-hash-table new-hash)))
 
@@ -266,11 +279,12 @@
       (setf viewpoint (format NIL "~a/base_link" viewpoint)))
     (dotimes (index (length sem-keys))
       (let*((pose (get-pose-by-elem (nth index sem-keys)))
-            (human-pose (cl-transforms:transform->pose (cl-tf:lookup-transform *tf* "map" viewpoint)))
+            (human-pose (cl-transforms:transform->pose (cl-tf:lookup-transform cram-sherpa-spatial-relations::*tf* "map" viewpoint)))
             (obj-pose (cl-transforms:make-pose (cl-transforms:origin pose)
                                                (cl-transforms:orientation human-pose))))
       (setf (gethash (nth index sem-keys) new-hash) obj-pose)))
 (copy-hash-table new-hash)))
+
 
 (defun get-type-by-elem (name)
  (let*((type NIL)
@@ -314,6 +328,32 @@
                    (setf type "Pylon"))
                   (t (setf type (slot-value (gethash name new-hash)
                                                         'cram-semantic-map-utils::type))))))
+   type))
+
+(defun get-elem-type (name)
+ (let*((type NIL))
+       (cond ((or (search "tree" name)
+                  (search "Tree" name))
+              (setf type "tree"))
+             ((or (search "rock" name)
+                  (search "Rock" name))
+                   (setf type "rock"))
+             ((or (search "lake" name)
+                  (search "Lake" name))
+              (setf type "lake"))
+             ((or (search "tunnel" name)
+                  (search "Tunnel" name))
+                   (setf type "tunnel"))
+                  ((or (search "cottage" name)
+                       (search "Cottage" name))
+                   (setf type "cottage"))
+                  ((or (search "bridge" name)
+                       (search "Bridge" name))
+                   (setf type "bridge"))
+                  ((search "pylon" name)
+                   (setf type "pylon"))
+                  ((search "Helipad" name)
+                   (setf type "Helipad")))              
    type))
 
 ;; Get next element based on previous element without
@@ -484,10 +524,10 @@
          (poses '()))
     (dotimes (index (length sem-keys))
       (let*((pose (get-pose-by-elem (nth index sem-keys)))
-            (pub (cl-tf:set-transform *tf* (cl-transforms-stamped:make-transform-stamped "map" (nth index sem-keys) (roslisp:ros-time) (cl-transforms:origin pose) (cl-transforms:orientation pose))))
-            (obj-pose2 (cl-transforms-stamped:transform->pose (cl-tf:lookup-transform *tf* "map" (nth index sem-keys))))
-            (obj-pose (cl-transforms-stamped:transform->pose (cl-tf:lookup-transform *tf* viewpoint (nth index sem-keys))))
-            (agentpose (cl-transforms:transform->pose  (cl-tf:lookup-transform *tf*  "map" viewpoint)))
+            (pub (cl-tf:set-transform cram-sherpa-spatial-relations::*tf* (cl-transforms-stamped:make-transform-stamped "map" (nth index sem-keys) (roslisp:ros-time) (cl-transforms:origin pose) (cl-transforms:orientation pose))))
+            (obj-pose2 (cl-transforms-stamped:transform->pose (cl-tf:lookup-transform cram-sherpa-spatial-relations::*tf* "map" (nth index sem-keys))))
+            (obj-pose (cl-transforms-stamped:transform->pose (cl-tf:lookup-transform cram-sherpa-spatial-relations::*tf* viewpoint (nth index sem-keys))))
+            (agentpose (cl-transforms:transform->pose  (cl-tf:lookup-transform cram-sherpa-spatial-relations::*tf*  "map" viewpoint)))
             (dist (get-distance agentpose obj-pose2)))
       (if (and (>= 1000 dist)
                (plusp (cl-transforms:x (cl-transforms:origin obj-pose))))
@@ -499,10 +539,10 @@
       (setf viewpoint (format NIL "~a/base_link" viewpoint)))
   (let*((poses NIL))
        (let*((pose (get-elem-pose elem));;pose-by-elem elem))
-             (pub (cl-tf:set-transform *tf* (cl-transforms-stamped:make-transform-stamped "map" elem (roslisp:ros-time) (cl-transforms:origin pose) (cl-transforms:orientation pose))))
-             (obj-pose2 (cl-transforms-stamped:transform->pose (cl-tf:lookup-transform *tf* "map" elem)))
-             (obj-pose (cl-transforms-stamped:transform->pose (cl-tf:lookup-transform *tf* viewpoint elem)))
-             (agentpose (cl-transforms:transform->pose  (cl-tf:lookup-transform *tf*  "map" viewpoint)))
+             (pub (cl-tf:set-transform cram-sherpa-spatial-relations::*tf* (cl-transforms-stamped:make-transform-stamped "map" elem (roslisp:ros-time) (cl-transforms:origin pose) (cl-transforms:orientation pose))))
+             (obj-pose2 (cl-transforms-stamped:transform->pose (cl-tf:lookup-transform cram-sherpa-spatial-relations::*tf* "map" elem)))
+             (obj-pose (cl-transforms-stamped:transform->pose (cl-tf:lookup-transform cram-sherpa-spatial-relations::*tf* viewpoint elem)))
+             (agentpose (cl-transforms:transform->pose  (cl-tf:lookup-transform cram-sherpa-spatial-relations::*tf*  "map" viewpoint)))
              (dist (get-distance agentpose obj-pose2)))
       (if (and (>= 500 dist)
                (plusp (cl-transforms:x (cl-transforms:origin obj-pose))))
@@ -519,10 +559,10 @@
     (dotimes (index (length sem-keys))
      (cond ((not (search "MountainRoad" (nth index sem-keys)))
       (let*((pose (get-pose-by-elem (nth index sem-keys)))
-            (pub (cl-tf:set-transform *tf* (cl-transforms-stamped:make-transform-stamped "map" (nth index sem-keys) (roslisp:ros-time) (cl-transforms:origin pose) (cl-transforms:orientation pose))))
-            (obj-pose2 (cl-transforms-stamped:transform->pose (cl-tf:lookup-transform *tf* "map" (nth index sem-keys))))
-            (obj-pose (cl-transforms-stamped:transform->pose (cl-tf:lookup-transform *tf* viewpoint (nth index sem-keys))))
-            (agentpose (cl-transforms:transform->pose  (cl-tf:lookup-transform *tf*  "map" viewpoint)))
+            (pub (cl-tf:set-transform cram-sherpa-spatial-relations::*tf* (cl-transforms-stamped:make-transform-stamped "map" (nth index sem-keys) (roslisp:ros-time) (cl-transforms:origin pose) (cl-transforms:orientation pose))))
+            (obj-pose2 (cl-transforms-stamped:transform->pose (cl-tf:lookup-transform cram-sherpa-spatial-relations::*tf* "map" (nth index sem-keys))))
+            (obj-pose (cl-transforms-stamped:transform->pose (cl-tf:lookup-transform cram-sherpa-spatial-relations::*tf* viewpoint (nth index sem-keys))))
+            (agentpose (cl-transforms:transform->pose  (cl-tf:lookup-transform cram-sherpa-spatial-relations::*tf*  "map" viewpoint)))
             (dist (get-distance agentpose obj-pose2)))
       (if (and (>= 500 dist)
                (plusp (cl-transforms:x (cl-transforms:origin obj-pose))))
@@ -535,7 +575,7 @@
 (defun get-dist-of-elem-by-agent (name &optional (viewpoint "busy_genius"))
    (if (not (string-equal viewpoint "busy_genius"))
       (setf viewpoint (format NIL "~a/base_link" viewpoint)))
-  (format NIL "~a:~a" name (get-distance (get-pose-by-elem name) (cl-transforms:transform->pose (cl-tf:lookup-transform *tf* "map" viewpoint)))))
+  (format NIL "~a:~a" name (get-distance (get-pose-by-elem name) (cl-transforms:transform->pose (cl-tf:lookup-transform cram-sherpa-spatial-relations::*tf* "map" viewpoint)))))
 
 (defun get-elems-of-type (type)
   (let*((sem-hash (slot-value *sem-map* 'sem-map-utils:parts))
@@ -679,9 +719,9 @@
 (defun calculate-relation-by-agent-pose (viewpoint relation)
    (if (not (string-equal viewpoint "busy_genius"))
       (setf viewpoint (format NIL "~a/base_link" viewpoint)))
-  (let* ((pose (cl-transforms:transform->pose  (cl-tf:lookup-transform *tf* "map" viewpoint)))
+  (let* ((pose (cl-transforms:transform->pose  (cl-tf:lookup-transform cram-sherpa-spatial-relations::*tf* "map" viewpoint)))
          (result NIL))
-    (cl-tf:set-transform *tf*
+    (cl-tf:set-transform cram-sherpa-spatial-relations::*tf*
                          (cl-transforms-stamped:make-transform-stamped
                           "map" "relation"
                           (roslisp:ros-time)
@@ -691,22 +731,21 @@
           (setf pose (cl-transforms-stamped:make-pose-stamped "relation" 0.0
                                                           (cl-transforms:make-3d-vector 0 -20 0)
                                                           (cl-transforms:make-identity-rotation)))
-          (setf result (cl-tf:transform-pose *tf* :pose pose :target-frame "map")))
+          (setf result (cl-tf:transform-pose cram-sherpa-spatial-relations::*tf* :pose pose :target-frame "map")))
          ((string-equal "left" relation)
           (setf pose (cl-transforms-stamped:make-pose-stamped "relation" 0.0
                                                           (cl-transforms:make-3d-vector 0 20 0)
                                                           (cl-transforms:make-identity-rotation)))
-          (setf result (cl-tf:transform-pose *tf* :pose pose :target-frame "map")))
+          (setf result (cl-tf:transform-pose cram-sherpa-spatial-relations::*tf* :pose pose :target-frame "map")))
          ((string-equal "straight" relation)
           (setf pose (cl-transforms-stamped:make-pose-stamped "relation" 0.0
                                                           (cl-transforms:make-3d-vector 20 0 0)
                                                           (cl-transforms:make-identity-rotation)))
-          (setf result (cl-tf:transform-pose *tf* :pose pose :target-frame "map"))))
+          (setf result (cl-tf:transform-pose cram-sherpa-spatial-relations::*tf* :pose pose :target-frame "map"))))
     (publish-pose (cl-transforms-stamped:pose-stamped->pose result) :id 100)
     result))
 
 (defun get-specific-elem (name viewpoint)
-  (format t "name ~a~%" name)
    (if (not (string-equal viewpoint "busy_genius"))
       (setf viewpoint (format NIL "~a/base_link" viewpoint)))
   (let((elem-list (get-all-elems-front-agent-by-type name viewpoint))
@@ -714,8 +753,8 @@
        (pose NIL)(obj-pose NIL))
     (dotimes (index (length elem-list))
       (setf pose (get-elem-pose (nth index elem-list)))
-      (cl-tf:set-transform *tf* (cl-transforms-stamped:make-transform-stamped "map" (nth index elem-list) (roslisp:ros-time) (cl-transforms:origin pose) (cl-transforms:orientation pose)))
-      (setf obj-pose (cl-transforms-stamped:transform->pose (cl-tf:lookup-transform *tf* viewpoint (nth index elem-list))))
+      (cl-tf:set-transform cram-sherpa-spatial-relations::*tf* (cl-transforms-stamped:make-transform-stamped "map" (nth index elem-list) (roslisp:ros-time) (cl-transforms:origin pose) (cl-transforms:orientation pose)))
+      (setf obj-pose (cl-transforms-stamped:transform->pose (cl-tf:lookup-transform cram-sherpa-spatial-relations::*tf* viewpoint (nth index elem-list))))
       (if (plusp (cl-transforms:x (cl-transforms:origin obj-pose)))
           (setf poses (append poses (list (nth index elem-list))))))
     (first poses)))
@@ -726,12 +765,18 @@
     (dotimes (index (length desigs))
       (cond ((or (string-equal (desig-prop-value (nth index desigs) :to) "take-picture")
                  (string-equal (desig-prop-value (nth index desigs) :to) "stop")
-                 (string-equal (desig-prop-value (nth index desigs) :to) "land")
-                 (string-equal (desig-prop-value (nth index desigs) :to) "show-picture"))
+                 (string-equal (desig-prop-value (nth index desigs) :to) "take-off")
+                 (string-equal (desig-prop-value (nth index desigs) :to) "show-picture")
+                 (string-equal (desig-prop-value (nth index desigs) :to) "charge")) 
              (setf var T))
             ((and (string-equal (desig-prop-value (nth index desigs) :to) "mount")
                   (not (null (desig-prop-value (nth index desigs) :agent))))
              (setf var T))
+            ((and (string-equal (desig-prop-value (nth index desigs) :to) "land")
+                  (not (null (desig-prop-value (nth index desigs) :destination)))
+                  (not (null (assoc :of (desig:properties (desig-prop-value (nth index desigs) :destination))))))
+             (setf var T))
+            
             ((and (string-equal (desig-prop-value (nth index desigs) :to) "scan")
                   (not (null (desig-prop-value (nth index desigs) :agent))))
              (setf var T))
@@ -765,5 +810,55 @@
                              (not (null (desig-prop-value loc :ontop)))
                              (not (null (desig-prop-value loc :left))))
                          (setf var T))))))))
-    var))
-                  
+    var))             
+
+(defun display-box (pose num vec)
+  (setf *marker-publisher*
+        (roslisp:advertise "visualization_marker" "visualization_msgs/Marker"))
+  (let* ((point (cl-transforms:origin pose))
+         (rot (cl-transforms:orientation pose)))
+    (when *marker-publisher*
+      (roslisp:publish *marker-publisher*
+               (roslisp:make-message "visualization_msgs/Marker"
+                             (stamp header) (roslisp:ros-time)
+                             (frame_id header)
+                             (typecase pose
+                               (cl-transforms-stamped:pose-stamped (cl-transforms-stamped:frame-id  pose))
+                               (t cram-tf:*fixed-frame*))
+
+                             ns "kipla_locations"
+                             id num
+                             type (roslisp:symbol-code 
+                                   'visualization_msgs-msg:<marker> :cube)
+                             action (roslisp:symbol-code
+                                     'visualization_msgs-msg:<marker> :add)
+                             (x position pose) (cl-transforms:x point)
+                             (y position pose) (cl-transforms:y point)
+                             (z position pose) (cl-transforms:z point)
+                             (x orientation pose) (cl-transforms:x rot)
+                             (y orientation pose) (cl-transforms:y rot)
+                             (z orientation pose) (cl-transforms:z rot)
+                             (w orientation pose) (cl-transforms:w rot)
+                             (x scale) (cl-transforms:x vec)
+                             (y scale) (cl-transforms:y vec)
+                             (z scale) (cl-transforms:z vec)
+                             (r color) 1
+                             (g color) 1
+                             (b color) 1
+                             (a color) 0.4)))))
+
+
+;;;
+;;; reference resolution by viewpoint of agent
+;;; @desig: location-designator to be resolved
+;;; @robotname: for setting the viewpoint
+;;;
+(defun reference-by-agent-frame (desig viewpoint)
+  (let((sample NIL))
+       (if (not (string-equal "busy_genius" viewpoint))
+           (setf cram-tf:*fixed-frame* (format NIL "~a/base_link" viewpoint))
+           (setf cram-tf:*fixed-frame* viewpoint))
+    (cond((not(null desig))
+          (setf sample (reference desig))))
+    (setf cram-tf:*fixed-frame* "map")
+    sample))
