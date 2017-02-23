@@ -29,7 +29,6 @@
 (in-package :hmi-cram)
 
 (defun get-pointed-elem-by-voice-type (pose type &optional (viewpoint "busy_genius"))
-   (format t "calculate pose1 ~a~%" pose)
   (let ((poses-liste (calculate-ray pose))
         (elem1 (get-all-elems-front-agent-by-type type viewpoint))
         (elem2 (get-all-elems-front-agent-by-type type viewpoint))
@@ -52,7 +51,6 @@
     (first (remove-duplicates elem))))
         
 (defun give-pointed-direction (pose)
-  (format t "calculate pose ~a~%" pose)
   (let ((liste (calculate-ray (cl-transforms:make-pose
                                (cl-transforms:make-3d-vector (cl-transforms:x
                                                               (cl-transforms:origin pose))
@@ -85,7 +83,6 @@
 
 
 (defun calculate-ray (pose)
-  (format t "pose ~a~%" pose)
   (let((poslist'())(posexyz NIL)(posex-yz NIL)(posex-y-z NIL)
        (posexy-z NIL)(posex NIL)(posexz NIL)(posex-z NIL)
        (posexy NIL)(posex-y NIL)(xyz NIL)(x-yz NIL)(xy-z NIL)
