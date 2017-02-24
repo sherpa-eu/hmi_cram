@@ -34,32 +34,32 @@
         (elem2 (get-all-elems-front-agent-by-type type viewpoint))
         (elem '()))
     (dotimes (index (length poses-liste))
-        (cond ((string-equal (car elem1) (car elem2))
-               (dotimes(in (length elem1))
-                 (publish-pose  (nth index poses-liste) :id (+ 3000 index))
-                 (cond ((equal T (check-distance (cl-transforms:origin (get-elem-pose (nth in elem1)))
+      (cond ((string-equal (car elem1) (car elem2))
+             (dotimes(in (length elem1))
+               (publish-pose  (nth index poses-liste) :id (+ 3000 index))
+               (cond ((equal T (check-distance (cl-transforms:origin (get-elem-pose (nth in elem1)))
+                                               (cl-transforms:origin (nth index poses-liste))))
+                      (setf elem (append elem (list (nth in elem1))))))))
+            (t (dotimes (in (length elem2))
+                 (cond ((equal T (check-distance (cl-transforms:origin (get-elem-pose (nth in elem2)))
                                                  (cl-transforms:origin (nth index poses-liste))))
-               (setf elem (append elem (list (nth in elem1))))))))
-              (t (dotimes (in (length elem2))
-                   (cond ((equal T (check-distance (cl-transforms:origin (get-elem-pose (nth in elem2)))
-                                                   (cl-transforms:origin (nth index poses-liste))))
-               (setf elem (append elem (list (nth in elem2))))))))))
-                (if (null elem)
-                    (if (null elem1)
-                        (setf elem (list (car elem2)))
-                        (setf elem (list (car elem1)))))
+                        (setf elem (append elem (list (nth in elem2))))))))))
+    (if (null elem)
+        (if (null elem1)
+            (setf elem (list (car elem2)))
+            (setf elem (list (car elem1)))))
     (first (remove-duplicates elem))))
-        
+
 (defun give-pointed-direction (pose)
   (let ((liste (calculate-ray (cl-transforms:make-pose
                                (cl-transforms:make-3d-vector (cl-transforms:x
                                                               (cl-transforms:origin pose))
                                                              (cl-transforms:y
                                                               (cl-transforms:origin pose))
-                                                              (cl-transforms:z
+                                                             (cl-transforms:z
                                                               (cl-transforms:origin pose)))
                                (cl-transforms:orientation pose)))))
-    (nth 800 liste)))
+    (car (last liste))))
 
 (defun square (n)
   (* n n))
@@ -67,19 +67,19 @@
 
 
 (defun copy-hash-table (hash-table)
-                 (let ((ht (make-hash-table
-                            :test 'equal
-                            :size (hash-table-size hash-table))))
-                   (loop for key being each hash-key of hash-table
-                         using (hash-value value)
-                         do (setf (gethash key ht) value)
-                            finally (return ht))))
+  (let ((ht (make-hash-table
+             :test 'equal
+             :size (hash-table-size hash-table))))
+    (loop for key being each hash-key of hash-table
+            using (hash-value value)
+          do (setf (gethash key ht) value)
+          finally (return ht))))
 
 (defun hash-table-keys (hash-table)
-                   "Return a list of keys in HASH-TABLE."
-                   (let ((keys '()))
-                     (maphash (lambda (k _v) (push k keys)) hash-table)
-                     keys))
+  "Return a list of keys in HASH-TABLE."
+  (let ((keys '()))
+    (maphash (lambda (k _v) (push k keys)) hash-table)
+    keys))
 
 
 (defun calculate-ray (pose)
@@ -87,13 +87,13 @@
        (posexy-z NIL)(posex NIL)(posexz NIL)(posex-z NIL)
        (posexy NIL)(posex-y NIL)(xyz NIL)(x-yz NIL)(xy-z NIL)
        (x-y-z NIL)(x NIL)(xz NIL)(x-z NIL)(xy NIL)(x-y NIL))
-       (publish-pose pose :id 1100)
-    (loop for index from 3 to 200
+    (publish-pose pose :id 1100)
+    (loop for index from 3 to 1000
           do (cl-tf:set-transform cram-sherpa-spatial-relations::*tf*  (cl-transforms-stamped:make-transform-stamped
-                                        "map" "gesture"
-                                        (roslisp:ros-time)
-                                        (cl-transforms:origin pose)
-                                        (cl-transforms:orientation pose)))
+                                                                        "map" "gesture"
+                                                                        (roslisp:ros-time)
+                                                                        (cl-transforms:origin pose)
+                                                                        (cl-transforms:orientation pose)))
              (setf posexyz (cl-transforms-stamped:make-pose-stamped
                             "gesture" 0.0
                             (cl-transforms:make-3d-vector index 1 1)
@@ -115,9 +115,9 @@
                           (cl-transforms:make-3d-vector index 0 0)
                           (cl-transforms:make-identity-rotation)))
              (setf posexz (cl-transforms-stamped:make-pose-stamped
-                         "gesture" 0.0
-                         (cl-transforms:make-3d-vector index 0 1)
-                         (cl-transforms:make-identity-rotation)))
+                           "gesture" 0.0
+                           (cl-transforms:make-3d-vector index 0 1)
+                           (cl-transforms:make-identity-rotation)))
              (setf posex-z (cl-transforms-stamped:make-pose-stamped
                             "gesture" 0.0
                             (cl-transforms:make-3d-vector index 0 -1)
@@ -148,6 +148,6 @@
              (setf poslist (append (list  (cl-transforms-stamped:pose-stamped->pose x-z)) poslist))
              (setf poslist (append (list  (cl-transforms-stamped:pose-stamped->pose xy)) poslist))
              (setf poslist (append (list  (cl-transforms-stamped:pose-stamped->pose x-y)) poslist)))
-  (setf poslist (reverse poslist))
-  (dotimes(test (length poslist))
-    do(publish-pose (nth test poslist) :id (+  test 100))) poslist)) 
+    (setf poslist (reverse poslist))
+    (dotimes(test (length poslist))
+      do(publish-pose (nth test poslist) :id (+  test 100))) poslist)) 

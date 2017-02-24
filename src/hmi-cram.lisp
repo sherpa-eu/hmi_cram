@@ -36,41 +36,22 @@
 
 (roslisp:def-service-callback hmi_interpreter-srv::HMIDesig (desigs)
   (let ((create_desig (create-desig-based-on-hmi-call desigs))
-       (semantic_desig '())(tmp NIL))
-      (dotimes (index (length create_desig))
-        (setf semantic_desig
-              (append semantic_desig (list (add-semantic-to-desigs
-                                            (desig-prop-value (nth index create_desig) :viewpoint)
-                                            (nth index create_desig))))))
+        (semantic_desig '())(tmp NIL))
+    (dotimes (index (length create_desig))
+      (setf semantic_desig
+            (append semantic_desig (list (add-semantic-to-desigs
+                                          (nth index create_desig))))))
+    
     (setf tmp (check-all-designators semantic_desig))
     (cond((null tmp)
-          (format t "[(CRAM-REASON-DESIG) INFO] DESIG: ~a~%" semantic_desig)
+          (format t "[(CRAM-REASON-DESIG) INFO] Did not work for DESIG: ~a~%" semantic_desig)
           (roslisp:make-response :result "Done!")
           (reset-all-services))
          (t
-          ;;(setf semantic_desig (check-resolve-designators semantic_desig))
-          (setf semantic_desig (check-resolve-desigs-pose semantic_desig))
-          (format t "[(CRAM-REASON-DESIG) INFO] DESIG-0: ~a~%" semantic_desig)
-          ;; (let ((thread-handle NIL))
-          ;;   (unwind-protect 
-          ;;       (progn 
-          ;;(setf thread-handle (sb-thread:make-threadq
-          ;;                   (lambda ()
-          (setf robots-common::*logging-enabled* t)
-          ;;(commander:human-command (first semantic_desig))
-          ;;         (sleep 5.0))
-          ;;      (sb-thread:terminate-thread thread-handle)))      
+          (setf semantic_desig (check-resolve-designators semantic_desig))
+          ;;    ;; (setf semantic_desig (check-resolve-desigs-pose semantic_desig))
+          (format t "[(CRAM-REASON-DESIG) INFO] DESIG: ~a~%" semantic_desig)
+          ;;     (setf robots-common::*logging-enabled* t)
+          ;;    (commander:human-command (first semantic_desig))
           (reset-all-services)
           (roslisp:make-response :result "Done!")))))
-
-
-(defun talker ()
-    (let((pub (roslisp:advertise  "/speaker_on" "std_msgs/String")))
-      (roslisp:publish-msg pub :data (format nil "~%"))))
-
-;; (defun init-tf ()
-;;   (setf *tf* (make-instance 'cl-tf:transform-listener))
-;;   (setf *pub* (cl-tf:make-transform-broadcaster)))
-
-;; (roslisp-utilities:register-ros-init-function init-tf)
-
