@@ -39,43 +39,57 @@
        (viewpoint (std_msgs-msg:data
                    (hmi_interpreter-msg:viewpoint index)))
        (propkeys (hmi_interpreter-msg:propkeys index)))
-    (roslisp:wait-for-service "add_openEase_object" 10)
-    (setf obj (slot-value (roslisp:call-service "add_openEase_object"
-                                                'hmi_interpreter-srv:text_parser :goal "get")
-                          'hmi_interpreter-srv:result))
+    (if (roslisp:wait-for-service "add_openEase_object" 10)
+        (setf obj (slot-value (roslisp:call-service "add_openEase_object"
+                                                    'hmi_interpreter-srv:text_parser :goal "get")
+                          'hmi_interpreter-srv:result)))
     (loop for jndex being the elements of propkeys
           do(let((pose NIL)
                  (pointed-pose NIL))
-              (setf pose (cl-transforms:make-pose 
-                          (cl-transforms:make-3d-vector
-                           (geometry_msgs-msg:x
-                            (geometry_msgs-msg:position
-                             (hmi_interpreter-msg:pointing_gesture jndex)))
-                           (geometry_msgs-msg:y
-                            (geometry_msgs-msg:position
-                             (hmi_interpreter-msg:pointing_gesture jndex)))
-                           (geometry_msgs-msg:z
+              (cond((and (= 0.0d0 (geometry_msgs-msg:x
                             (geometry_msgs-msg:position
                              (hmi_interpreter-msg:pointing_gesture jndex))))
-                          (cl-transforms:make-quaternion
-                           (geometry_msgs-msg:x
-                            (geometry_msgs-msg:orientation
+                       (= 0.0d0 (geometry_msgs-msg:y
+                            (geometry_msgs-msg:position
+                             (hmi_interpreter-msg:pointing_gesture jndex))))
+                       (= 0.0d0 (geometry_msgs-msg:z
+                                 (geometry_msgs-msg:position
+                                  (hmi_interpreter-msg:pointing_gesture jndex)))))
+                    (if (not (string-equal "none" obj))
+                        (setf pointed-pose (get-elem-pose obj))
+                        (setf pointed-pose (give-pointing-related-to-human)))
+                     (publish-pose pointed-pose :id 19208213))
+                   (t
+                    (setf pose (cl-transforms:make-pose 
+                                (cl-transforms:make-3d-vector
+                                 (geometry_msgs-msg:x
+                                  (geometry_msgs-msg:position
+                                   (hmi_interpreter-msg:pointing_gesture jndex)))
+                                 (geometry_msgs-msg:y
+                                  (geometry_msgs-msg:position
                              (hmi_interpreter-msg:pointing_gesture jndex)))
-                           (geometry_msgs-msg:y
-                            (geometry_msgs-msg:orientation
-                             (hmi_interpreter-msg:pointing_gesture jndex)))
-                           (geometry_msgs-msg:z
-                            (geometry_msgs-msg:orientation
-                             (hmi_interpreter-msg:pointing_gesture jndex)))
-                           (geometry_msgs-msg:w
-                            (geometry_msgs-msg:orientation
-                             (hmi_interpreter-msg:pointing_gesture jndex))))))
-              (publish-pose pose :id 19208213)
-              (if (string-equal "none" obj)
-                  (setf pointed-pose (give-pointed-direction pose))
-                  (setf pointed-pose obj))
-              (setf loc_desig (make-designator :location `((:viewpoint ,viewpoint)
-                                                           (:pose ,pointed-pose))))
+                                 (geometry_msgs-msg:z
+                                  (geometry_msgs-msg:position
+                                   (hmi_interpreter-msg:pointing_gesture jndex))))
+                                (cl-transforms:make-quaternion
+                                 (geometry_msgs-msg:x
+                                  (geometry_msgs-msg:orientation
+                                   (hmi_interpreter-msg:pointing_gesture jndex)))
+                                 (geometry_msgs-msg:y
+                                  (geometry_msgs-msg:orientation
+                                   (hmi_interpreter-msg:pointing_gesture jndex)))
+                                 (geometry_msgs-msg:z
+                                  (geometry_msgs-msg:orientation
+                                   (hmi_interpreter-msg:pointing_gesture jndex)))
+                                 (geometry_msgs-msg:w
+                                  (geometry_msgs-msg:orientation
+                                   (hmi_interpreter-msg:pointing_gesture jndex))))))
+                    (if (string-equal "none" obj)
+                        (setf pointed-pose (give-pointed-direction pose))
+                        (setf pointed-pose (get-elem-pose obj)))
+                       (publish-pose pose :id 19208213)))
+                      (setf loc_desig (make-designator :location `((:viewpoint ,viewpoint)
+                                                                   (:pose ,pointed-pose))))
               (if (string-equal "robot" actor)
                   (setf actor NIL))
               (setf action-list (append action-list
@@ -127,19 +141,31 @@
                                                              (:actor ,actor)
                                                              (:operator ,(set-keyword operator))
                                                              (:destination ,(make-designator :location `((:viewpoint ,(desig-prop-value (desig-prop-value loc_desig :destination) :viewpoint))                                                                            (:reachable-for ,objname)))))))))
-               (t (setf desig (list (make-designator :action `((:to ,(set-keyword "land"))
-                                                               (:actor ,actor)
-                                                               (:operator ,(set-keyword operator))
-                                                               (:destination ,loc_desig))))))))
-         ((string-equal "search" action)
-          (setf desig (list (make-designator :action `((:to ,(set-keyword "search"))
+               (t
+
+                (if (or (null objname)
+                        (string-equal "null" objname))
+                    (setf desig  (list (make-designator :action `((:to ,(set-keyword "land"))
+                                                                  (:actor ,actor)
+                                                                  (:operator ,(set-keyword operator))))))
+                    (setf desig (list (make-designator :action `((:to ,(set-keyword "land"))
+                                                                 (:actor ,actor)
+                                                                 (:operator ,(set-keyword operator))
+                                                                 (:destination ,loc_desig)))))))))
+          ((string-equal "search" action)
+           (setf desig (list (make-designator :action `((:to ,(set-keyword "search"))
+                                                        (:actor ,actor)
+                                                        (:operator ,(set-keyword operator))
+                                                        (:object ,(set-keyword (second (second (desig:properties loc_desig)))))
+                                                        (:area ,objname))))))
+          ((string-equal "look-for" action)
+          (setf desig (list (make-designator :action `((:to ,(set-keyword "look-for"))
                                                        (:actor ,actor)
                                                        (:operator ,(set-keyword operator))
-                                                       (:object ,(set-keyword (second (second (desig:properties loc_desig)))))
-                                                       (:area ,objname))))))
-         ((or (string-equal "look-for" action)
-              (string-equal "search-for" action))
-          (setf desig (list (make-designator :action `((:to ,(set-keyword "look-for"))
+                                                       (:object ,(set-keyword objname)))))))
+        
+          ((string-equal "search-for" action)
+          (setf desig (list (make-designator :action `((:to ,(set-keyword "search-for"))
                                                        (:actor ,actor)
                                                        (:operator ,(set-keyword operator))
                                                        (:object ,(set-keyword objname)))))))
@@ -247,31 +273,42 @@
               (cond((and (string-equal "true" flag)
                          (null (get-elem-pose object))
                          (string-equal oe-object "none"))
-                    (setf pose (cl-transforms:make-pose 
-                                (cl-transforms:make-3d-vector
-                                 (geometry_msgs-msg:x
-                                  (geometry_msgs-msg:position
-                                   (hmi_interpreter-msg:pointing_gesture jndex)))
-                                 (geometry_msgs-msg:y
-                                  (geometry_msgs-msg:position
-                                   (hmi_interpreter-msg:pointing_gesture jndex)))
-                                 (geometry_msgs-msg:z
-                                  (geometry_msgs-msg:position
-                                   (hmi_interpreter-msg:pointing_gesture jndex))))
-                                (cl-transforms:make-quaternion
-                                 (geometry_msgs-msg:x
-                                  (geometry_msgs-msg:orientation
-                                   (hmi_interpreter-msg:pointing_gesture jndex)))
-                                 (geometry_msgs-msg:y
-                                  (geometry_msgs-msg:orientation
-                                   (hmi_interpreter-msg:pointing_gesture jndex)))
-                                 (geometry_msgs-msg:z
-                                  (geometry_msgs-msg:orientation
-                                   (hmi_interpreter-msg:pointing_gesture jndex)))
-                                 (geometry_msgs-msg:w
-                                  (geometry_msgs-msg:orientation
-                                   (hmi_interpreter-msg:pointing_gesture jndex))))))
-                    (setf obj (get-pointed-elem-by-voice-type pose object viewpoint)))
+                    (cond((and (= 0.0d0 (geometry_msgs-msg:x
+                                         (geometry_msgs-msg:position
+                                          (hmi_interpreter-msg:pointing_gesture jndex))))
+                          (= 0.0d0 (geometry_msgs-msg:y
+                                         (geometry_msgs-msg:position
+                                          (hmi_interpreter-msg:pointing_gesture jndex)))) 
+                          (= 0.0d0 (geometry_msgs-msg:z
+                                         (geometry_msgs-msg:position
+                                          (hmi_interpreter-msg:pointing_gesture jndex)))))
+                          (setf obj (get-pointed-elem-by-voice-type (cl-transforms:make-identity-pose ) object viewpoint)))
+                          (t
+                           (setf pose (cl-transforms:make-pose 
+                                       (cl-transforms:make-3d-vector
+                                        (geometry_msgs-msg:x
+                                         (geometry_msgs-msg:position
+                                          (hmi_interpreter-msg:pointing_gesture jndex)))
+                                        (geometry_msgs-msg:y
+                                         (geometry_msgs-msg:position
+                                          (hmi_interpreter-msg:pointing_gesture jndex)))
+                                        (geometry_msgs-msg:z
+                                         (geometry_msgs-msg:position
+                                          (hmi_interpreter-msg:pointing_gesture jndex))))
+                                       (cl-transforms:make-quaternion
+                                        (geometry_msgs-msg:x
+                                         (geometry_msgs-msg:orientation
+                                          (hmi_interpreter-msg:pointing_gesture jndex)))
+                                        (geometry_msgs-msg:y
+                                         (geometry_msgs-msg:orientation
+                                          (hmi_interpreter-msg:pointing_gesture jndex)))
+                                        (geometry_msgs-msg:z
+                                         (geometry_msgs-msg:orientation
+                                          (hmi_interpreter-msg:pointing_gesture jndex)))
+                                        (geometry_msgs-msg:w
+                                         (geometry_msgs-msg:orientation
+                                          (hmi_interpreter-msg:pointing_gesture jndex))))))
+                           (setf obj (get-pointed-elem-by-voice-type pose object viewpoint)))))
                    ((and (not (string-equal "mount" action))
                          (string-equal "true" flag)
                          (not (string-equal oe-object "none")))
@@ -483,7 +520,8 @@
                                                      'hmi_interpreter-srv:text_parser :goal "get") 'hmi_interpreter-srv:result)))
     (dotimes (index (length desigs))
       (cond((and (desig-prop-value (nth index desigs) :destination)
-                  (not (desig-prop-value (desig-prop-value (nth index desigs) :destination) :pose)))
+                  (not (desig-prop-value (desig-prop-value (nth index desigs) :destination) :pose))
+                  (not (desig-prop-value (desig-prop-value (nth index desigs) :destination) :of)))
              (if(not (equal NIL (resolve-designator (desig-prop-value (nth index desigs) :destination) t)))
                  (setf liste (append liste (list (nth index desigs))))
                  (setf liste (append liste

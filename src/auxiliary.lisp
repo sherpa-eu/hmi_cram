@@ -762,7 +762,6 @@
 
 (defun check-all-designators (desigs)
   (let((var NIL))
-    (format t "check-all-designator ~a~%" desigs)
     (dotimes (index (length desigs))
       (cond ((or (string-equal (desig-prop-value (nth index desigs) :to) "take-picture")
                  (string-equal (desig-prop-value (nth index desigs) :to) "stop")
@@ -790,7 +789,10 @@
                   (desig-prop-value (nth index desigs) :destination))
              (if (or (assoc :of (desig:properties (desig-prop-value (nth index desigs) :destination)))
                      (assoc :ontop (desig:properties (desig-prop-value (nth index desigs) :destination))))
-                 (setf var T)))          
+                 (setf var T)))
+            ((and (string-equal (desig-prop-value (nth index desigs) :to) "land")
+                  (not (desig-prop-value (nth index desigs) :destination)))
+             (setf var T))
             ((and (string-equal (desig-prop-value (nth index desigs) :to) "come-back")
                   (not (null (desig-prop-value (nth index desigs) :pose))))
              (setf var T))
@@ -815,7 +817,6 @@
                              (not (null (desig-prop-value loc :left-of)))
                              (not (null (desig-prop-value loc :ontop))))
                          (setf var T))))))))
-    (format t "~a~%" var)
     var))             
 
 (defun display-box (pose num vec)

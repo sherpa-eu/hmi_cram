@@ -29,9 +29,13 @@
 (in-package :hmi-cram)
 
 (defun get-pointed-elem-by-voice-type (pose type &optional (viewpoint "busy_genius"))
-  (let ((poses-liste (calculate-ray pose))
+  (if(and (= 0.0d0 (cl-transforms:x (cl-transforms:origin pose)))
+          (= 0.0d0 (cl-transforms:y (cl-transforms:origin pose)))
+          (= 0.0d0 (cl-transforms:z (cl-transforms:origin pose))))
+     (setf pose (give-pointing-related-to-human)))
+  (let* ((poses-liste (calculate-ray pose))
         (elem1 (get-all-elems-front-agent-by-type type viewpoint))
-        (elem2 (get-all-elems-front-agent-by-type type viewpoint))
+        (elem2 elem1)
         (elem '()))
     (dotimes (index (length poses-liste))
       (cond ((string-equal (car elem1) (car elem2))
@@ -64,7 +68,18 @@
 (defun square (n)
   (* n n))
 
-
+(defun give-pointing-related-to-human()
+  (let((pose (tf-busy-genius-to-map))
+       (gest NIL))
+   (cl-tf:set-transform cram-sherpa-spatial-relations::*tf* (cl-transforms-stamped:make-transform-stamped
+                                                               "map" "gesture"
+                                                               (roslisp:ros-time)
+                                                               (cl-transforms:origin pose)
+                                                               (cl-transforms:orientation pose)))
+   (setf gest (cl-transforms-stamped:make-pose-stamped "gesture" 0.0
+                                                   (cl-transforms:make-3d-vector 100 0 0)
+                                                   (cl-transforms:make-identity-rotation)))
+    (cl-transforms-stamped:pose-stamped->pose (cl-tf:transform-pose cram-sherpa-spatial-relations::*tf* :pose gest :target-frame "map"))))
 
 (defun copy-hash-table (hash-table)
   (let ((ht (make-hash-table
