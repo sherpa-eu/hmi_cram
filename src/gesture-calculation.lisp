@@ -71,7 +71,7 @@
 (defun give-pointing-related-to-human()
   (let((pose (tf-busy-genius-to-map))
        (gest NIL))
-   (cl-tf:set-transform cram-sherpa-spatial-relations::*tf* (cl-transforms-stamped:make-transform-stamped
+   (cl-tf:set-transform cram-tf::*transformer* (cl-transforms-stamped:make-transform-stamped
                                                                "map" "gesture"
                                                                (roslisp:ros-time)
                                                                (cl-transforms:origin pose)
