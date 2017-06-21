@@ -55,10 +55,13 @@
                        (= 0.0d0 (geometry_msgs-msg:z
                                  (geometry_msgs-msg:position
                                   (hmi_interpreter-msg:pointing_gesture jndex)))))
-                    (if (not (string-equal "none" obj))
-                        (setf pointed-pose (get-elem-pose obj))
-                        (setf pointed-pose (give-pointing-related-to-human)))
-                     (publish-pose pointed-pose :id 19208213))
+                  ;;  (if (not (string-equal "none" obj))
+                  ;;      (setf pointed-pose (get-elem-pose obj))
+                  ;;     (setf pointed-pose (give-pointing-related-to-human)))
+                    (setf pointed-pose (give-pointing-related-to-human))
+                    (publish-objpose pointed-pose 19208213)
+                    )
+                    ;; (publish-pose pointed-pose :id 19208213))
                    (t
                     (setf pose (cl-transforms:make-pose 
                                 (cl-transforms:make-3d-vector
@@ -84,10 +87,13 @@
                                  (geometry_msgs-msg:w
                                   (geometry_msgs-msg:orientation
                                    (hmi_interpreter-msg:pointing_gesture jndex))))))
-                    (if (string-equal "none" obj)
-                        (setf pointed-pose (give-pointed-direction pose))
-                        (setf pointed-pose (get-elem-pose obj)))
-                       (publish-pose pose :id 19208213)))
+                  ;; (if (string-equal "none" obj)
+                 ;; (setf pointed-pose (give-pointed-direction pose))
+                 ;;  (setf pointed-pose (get-elem-pose obj)))
+                    (setf pointed-pose (give-pointed-direction (cl-transforms:make-identity-pose)))
+                 ;;   (publish-objpose pointed-pose :id 19823737308213)
+                   ;;    (publish-objpose pose :id 19208213))
+                   ))
                       (setf loc_desig (make-designator :location `((:viewpoint ,viewpoint)
                                                                    (:pose ,pointed-pose))))
               (if (string-equal "robot" actor)
@@ -153,6 +159,7 @@
                                                                  (:operator ,(set-keyword operator))
                                                                  (:destination ,loc_desig)))))))))
           ((string-equal "search" action)
+           (publish-elempose (get-elem-pose objname) 9876545678923)
            (setf desig (list (make-designator :action `((:to ,(set-keyword "search"))
                                                         (:actor ,actor)
                                                         (:operator ,(set-keyword operator))
@@ -287,8 +294,9 @@
                           (= 0.0d0 (geometry_msgs-msg:z
                                          (geometry_msgs-msg:position
                                           (hmi_interpreter-msg:pointing_gesture jndex)))))
-                          (setf obj (get-pointed-elem-by-voice-type (cl-transforms:make-identity-pose ) object viewpoint)))
-                          (t
+                          (setf obj (get-pointed-elem-by-voice-type (cl-transforms:make-identity-pose ) object viewpoint))
+                          )
+                          (t  
                            (setf pose (cl-transforms:make-pose 
                                        (cl-transforms:make-3d-vector
                                         (geometry_msgs-msg:x
@@ -313,7 +321,8 @@
                                         (geometry_msgs-msg:w
                                          (geometry_msgs-msg:orientation
                                           (hmi_interpreter-msg:pointing_gesture jndex))))))
-                           (setf obj (get-pointed-elem-by-voice-type pose object viewpoint)))))
+                           (setf obj (get-pointed-elem-by-voice-type pose object viewpoint))
+                           )))
                    ((and (not (string-equal "mount" action))
                          (string-equal "true" flag)
                          (not (string-equal oe-object "none")))
@@ -352,6 +361,7 @@
                                                                                 operator
                                                                                 obj
                                                                                 loc_desig)))
+  
     action-list)) 
 
 
@@ -420,16 +430,19 @@
                                                     (desig-prop-value (desig-prop-value desig :destination) :viewpoint))))
                                 (setf test2 (first (get-all-elems-by-type 
                                                     (second (first (last proplist))))))
-                                (if (string-equal test1 test2)
-                                    (setf felem test1)
-                                    (setf felem test2))
-                                (if (null felem)
-                                    (setf felem (first (get-all-elems-by-type  (second (first (last proplist)))))))
+                                (cond ((string-equal test1 test2)
+                                       (setf felem test1))
+                                      (t
+                                       (setf felem test2)))
+                                (cond ((null felem)
+                                    (setf felem (first (get-all-elems-by-type  (second (first (last proplist))))))))
                                 (if (roslisp:wait-for-service "add_costmap_name" 10)
                                     (roslisp:call-service "add_costmap_name" 'hmi_interpreter-srv:text_parser :goal felem))
+                              
                                 (setf tmpproplist (append tmpproplist
                                                           (list (list (first (first (last proplist)))
-                                                                      felem)))))))))
+                                                                      felem))))
+                                )))))
 
                   ((= 2 (length proplist))
                    (setf tmpproplist (add-semantics-two-desigs proplist (desig-prop-value (desig-prop-value desig :destination) :viewpoint)))))

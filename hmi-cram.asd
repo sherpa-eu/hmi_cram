@@ -54,7 +54,8 @@
   ((:module "src"
     :components
     ((:file "package")
-     (:file "auxiliary" :depends-on ("package"))
+     (:file "auxiliary" :depends-on ("package" "visualizations"))
+     (:file "visualizations" :depends-on ("package"))
      (:file "gesture-calculation" :depends-on ("package" "auxiliary"))
      (:file "designators" :depends-on ("package" "gesture-calculation"))
-     (:file "hmi-cram" :depends-on ("package" "designators" "gesture-calculation" "auxiliary"))))))
+     (:file "hmi-cram" :depends-on ("package" "designators" "gesture-calculation" "auxiliary" "visualizations"))))))

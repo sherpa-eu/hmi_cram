@@ -165,4 +165,4 @@
              (setf poslist (append (list  (cl-transforms-stamped:pose-stamped->pose x-y)) poslist)))
     (setf poslist (reverse poslist))
     (dotimes(test (length poslist))
-      do(publish-pose (nth test poslist) :id (+  test 100))) poslist)) 
+      do (publish-objpose (nth test poslist) (+  test 100))) poslist)) 
