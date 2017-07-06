@@ -159,7 +159,8 @@
                                                                  (:operator ,(set-keyword operator))
                                                                  (:destination ,loc_desig)))))))))
           ((string-equal "search" action)
-           (publish-elempose (get-elem-pose objname) 9876545678923)
+           (if (get-elem-pose objname)
+               (publish-elempose (get-elem-pose objname) 9876545678923))
            (setf desig (list (make-designator :action `((:to ,(set-keyword "search"))
                                                         (:actor ,actor)
                                                         (:operator ,(set-keyword operator))
@@ -361,7 +362,6 @@
                                                                                 operator
                                                                                 obj
                                                                                 loc_desig)))
-  
     action-list)) 
 
 
