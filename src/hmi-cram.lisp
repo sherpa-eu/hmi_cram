@@ -23,7 +23,7 @@
 ;;; SUBSTITUTE GOODS OR SERVICES; LOSS OF U
 
 (in-package :hmi-cram)
-
+(defvar *cmd-pub* nil)
 ;; ROSSERVICE FOR CALLING HMI-CRAM
 (defun hmi-main ()
   (hmi-cram-call))
@@ -31,6 +31,7 @@
 (defun hmi-cram-call ()
   (roslisp-utilities:startup-ros :name "hmi_cram_service")
   (roslisp:register-service "service_hmi_cram" 'hmi_interpreter-srv:HMIDesig)
+  (setf *cmd-pub* (roslisp:advertise "check_cmd_collector" "std_msgs/String"))
   (roslisp:ros-info (basics-system) "start hmi_cram_service")
   (roslisp:spin-until nil 1000))
 
@@ -49,9 +50,24 @@
           (roslisp:make-response :result "Done!"))
          (t
           (setf semantic_desig (check-resolve-designators semantic_desig))
+          (roslisp:publish *cmd-pub*
+                           (roslisp:make-message "std_msgs/String" :data "checked"))
           ;; (setf semantic_desig (check-resolve-desigs-pose semantic_desig))
           (format t "[(CRAM-REASON-DESIG) INFO] DESIG: ~a~%" semantic_desig)
         ;;  (setf robots-common::*logging-enabled* t)
         ;;  (commander:human-command (first semantic_desig))
           (reset-all-services)
           (roslisp:make-response :result "Done!")))))
+
+
+(defun proactive-main()
+  (proactive-main-call))
+
+(defun proactive-main-call ()
+  (roslisp-utilities:startup-ros :name "proactive_behavior_service")
+  (roslisp:register-service "service_proactivity" 'hmi_interpreter-srv:HMIDesig)
+  (setf *cmd-pub* (roslisp:advertise "check_cmd_collector" "std_msgs/String"))
+  (roslisp:ros-info (basics-system) "start proactive_behavior_service")
+  (roslisp:spin-until nil 1000))
+
+
