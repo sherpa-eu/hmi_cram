@@ -157,12 +157,13 @@
     (setf actlist (remove-duplicates (sort-list actlist) :test #'equal))
     (dotimes (jndex (length actlist))
       (publish-elempose (get-elem-pose (first (split-sequence:split-sequence #\: (nth jndex actlist)))) (+ test 35643673478))
+      (beliefstate:add-designator-to-active-node (make-designator :object `((:name ,(first (split-sequence:split-sequence #\: (nth jndex actlist)))))))
       (setf test (+ test 1))
       (setf poslist (append poslist (list (first (split-sequence:split-sequence #\: (nth jndex actlist)))))))
     poslist))
 
 (defun get-all-elems-front-agent-by-type (type viewpoint)
-  (let((actlist '())
+  (let((actlist '())(tmpact '())
        (poslist '())
        (test 1))
     (if (json-prolog:check-connection)
@@ -194,6 +195,9 @@
             (let ((obj (second
                         (split-sequence:split-sequence #\# 
                                                        (remove #\' (symbol-name (cdar  (nth index liste))))))))
+              (cond((not (find obj tmpact :test #'equal))
+                    (setf tmpact (append tmpact (list obj)))
+                    (beliefstate:add-designator-to-active-node (make-designator :object `((:name ,obj))))))
               (if(and (check-elems-infront-agent obj viewpoint)
                       (not (find obj actlist :test #'equal))) 
                  (setf actlist (append actlist (list
@@ -204,6 +208,7 @@
                                                                        obj)))))))))))
     (setf actlist (remove-duplicates (sort-list actlist) :test #'equal))
     (dotimes (jndex (length actlist))
+      (beliefstate:add-designator-to-active-node (make-designator :object `((:name ,(first (split-sequence:split-sequence #\: (nth jndex actlist)))))))
       (publish-elempose (get-elem-pose (first (split-sequence:split-sequence #\: (nth jndex actlist)))) (+ test 72346382746))
       (setf test (+ test 1))
       (setf poslist (append poslist (list (first (split-sequence:split-sequence #\: (nth jndex actlist)))))))

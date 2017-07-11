@@ -59,6 +59,7 @@
                   ;;      (setf pointed-pose (get-elem-pose obj))
                   ;;     (setf pointed-pose (give-pointing-related-to-human)))
                     (setf pointed-pose (give-pointing-related-to-human))
+                    (go-into-genius-gesture pointed-pose)
                     (publish-objpose pointed-pose 19208213)
                     )
                     ;; (publish-pose pointed-pose :id 19208213))
@@ -114,21 +115,30 @@
           (if (string-equal test1 test2)
               (setf elem-name test1)
               (setf elem-name test2))
+          (beliefstate:add-designator-to-active-node (make-designator :object `((:name ,elem-name))))
           (setf desig (list (make-designator :action `((:to ,(set-keyword "scan"))
                                                        (:actor ,actor)
                                                        (:operator ,(set-keyword operator))
                                                        (:area ,elem-name))))))
          ((or (string-equal "scan-lake" action)
               (string-equal "scan-area" action))
+          (beliefstate:add-designator-to-active-node (make-designator :object `((:name ,objname))))
           (setf desig (list (make-designator :action `((:to ,(set-keyword "scan"))
                                                        (:actor ,actor)
                                                        (:operator ,(set-keyword operator))
                                                        (:area ,objname))))))
          ((or (string-equal "take-picture" action)
               (string-equal "show-picture" action))
+          (if (or (string-equal "kite" objname)
+                  (string-equal "victim" objname))
+              (setf desig (list (make-designator :action `((:to ,(set-keyword action))
+                                                           (:actor ,actor)
+                                                           (:operator ,(set-keyword operator))
+                                                           (:destination ,(make-designator :location `((:viewpoint ,(desig-prop-value loc_desig :viewpoint))
+                                                                                                       (:of ,(set-keyword (desig-prop-value loc_desig :tmp))))))))))
           (setf desig (list (make-designator :action `((:to ,(set-keyword action))
                                                        (:actor ,actor)
-                                                       (:operator ,(set-keyword operator)))))))
+                                                       (:operator ,(set-keyword operator))))))))
          ((string-equal "come-back" action)
           (setf desig (list (make-designator :action `((:to ,(set-keyword "go"))
                                                        (:actor ,actor)
@@ -143,6 +153,7 @@
           (cond((or (search "donkey" objname)
                     (search "wasp" objname)
                     (search "hawk" objname))
+                (beliefstate:add-designator-to-active-node (make-designator :object `((:name ,objname))))
                 (setf desig (list (make-designator :action `((:to ,(set-keyword "land"))
                                                              (:actor ,actor)
                                                              (:operator ,(set-keyword operator))
@@ -161,18 +172,21 @@
           ((string-equal "search" action)
            (if (get-elem-pose objname)
                (publish-elempose (get-elem-pose objname) 9876545678923))
+           (beliefstate:add-designator-to-active-node (make-designator :object `((:name ,objname))))
            (setf desig (list (make-designator :action `((:to ,(set-keyword "search"))
                                                         (:actor ,actor)
                                                         (:operator ,(set-keyword operator))
                                                         (:object ,(set-keyword (second (second (desig:properties loc_desig)))))
                                                         (:area ,objname))))))
           ((string-equal "look-for" action)
+           (beliefstate:add-designator-to-active-node (make-designator :object `((:name ,objname))))
           (setf desig (list (make-designator :action `((:to ,(set-keyword "look-for"))
                                                        (:actor ,actor)
                                                        (:operator ,(set-keyword operator))
                                                        (:object ,(set-keyword objname)))))))
         
           ((string-equal "search-for" action)
+           (beliefstate:add-designator-to-active-node (make-designator :object `((:name ,objname))))
           (setf desig (list (make-designator :action `((:to ,(set-keyword "search-for"))
                                                        (:actor ,actor)
                                                        (:operator ,(set-keyword operator))
@@ -214,6 +228,7 @@
                  (setf action-list (append action-list (various-commands-function index)))))
     (dotimes (index (length action-list))
       (let((pose NIL))
+        (beliefstate:add-designator-to-active-node (nth index action-list))
         (cond ((and (string-equal "go" (desig-prop-value (nth index action-list) :to))
                     (desig-prop-value (nth index action-list) :destination)
                     (desig-prop-value (desig-prop-value (nth index action-list) :destination) :of))
@@ -250,6 +265,7 @@
                     (t 
                      (setf act-list (append act-list (list (nth index action-list)))))))
               (t (setf act-list (append act-list (list (nth index action-list))))))))
+  ;;  (format t "act-list ~a~%" act-list)
     act-list)) 
 
 (defun various-commands-function (index)
@@ -267,11 +283,12 @@
         (obj NIL)
         (oe-object NIL)
         (propkeys (hmi_interpreter-msg:propkeys index)))
-    (if (roslisp:wait-for-service "add_openEase_object" 10)
-        (setf oe-object (slot-value
-                         (roslisp:call-service "add_openEase_object"
-                                               'hmi_interpreter-srv:text_parser :goal "get")
-                         'hmi_interpreter-srv:result)))
+    (cond ((roslisp:wait-for-service "add_openEase_object" 10)
+           (setf oe-object (slot-value
+                            (roslisp:call-service "add_openEase_object"
+                                                  'hmi_interpreter-srv:text_parser :goal "get")
+                            'hmi_interpreter-srv:result))
+          (beliefstate:add-designator-to-active-node (make-designator :object `((:name ,oe-object))))))
     (loop for jndex being the elements of propkeys
           do(let((pose NIL)
                  (spatial
@@ -295,8 +312,7 @@
                           (= 0.0d0 (geometry_msgs-msg:z
                                          (geometry_msgs-msg:position
                                           (hmi_interpreter-msg:pointing_gesture jndex)))))
-                          (setf obj (get-pointed-elem-by-voice-type (cl-transforms:make-identity-pose ) object viewpoint))
-                          )
+                          (setf obj (get-pointed-elem-by-voice-type (cl-transforms:make-identity-pose ) object viewpoint)))
                           (t  
                            (setf pose (cl-transforms:make-pose 
                                        (cl-transforms:make-3d-vector
@@ -322,8 +338,7 @@
                                         (geometry_msgs-msg:w
                                          (geometry_msgs-msg:orientation
                                           (hmi_interpreter-msg:pointing_gesture jndex))))))
-                           (setf obj (get-pointed-elem-by-voice-type pose object viewpoint))
-                           )))
+                           (setf obj (get-pointed-elem-by-voice-type pose object viewpoint)))))
                    ((and (not (string-equal "mount" action))
                          (string-equal "true" flag)
                          (not (string-equal oe-object "none")))

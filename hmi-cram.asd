@@ -34,6 +34,7 @@
                cram-prolog
                cram-commander
                roslisp
+               cram-beliefstate
                cram-semantic-map-costmap
                ;; cram-bullet-reasoning
                ;; cram-bullet-reasoning-belief-state

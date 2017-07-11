@@ -24,6 +24,8 @@
 
 (in-package :hmi-cram)
 (defvar *cmd-pub* nil)
+(defvar *gesture* nil)
+(defvar *id-logger* nil)
 ;; ROSSERVICE FOR CALLING HMI-CRAM
 (defun hmi-main ()
   (hmi-cram-call))
@@ -32,13 +34,18 @@
   (roslisp-utilities:startup-ros :name "hmi_cram_service")
   (roslisp:register-service "service_hmi_cram" 'hmi_interpreter-srv:HMIDesig)
   (setf *cmd-pub* (roslisp:advertise "check_cmd_collector" "std_msgs/String"))
+  (setf *gesture* (roslisp:advertise "genius_gesture" "geometry_msgs/PoseStamped"))
+  (setf *id-logger* "cram")
   (roslisp:ros-info (basics-system) "start hmi_cram_service")
   (roslisp:spin-until nil 1000))
 
 (roslisp:def-service-callback hmi_interpreter-srv::HMIDesig (desigs)
   (let ((create_desig (create-desig-based-on-hmi-call desigs))
-        (semantic_desig '())(tmp NIL))
-     (publish-humanpose  (tf-busy-genius-to-map) 2981384847289346)
+        (semantic_desig '())(tmp NIL)(id NIL))
+    (if (string-equal *id-logger* "cram")
+        (setf id  (beliefstate:start-node "LOGGING-DESIGNATOR" NIL 2))
+        (setf id  (beliefstate:start-node "LOGGING-PROACTIVE-BEHAVIOR" NIL 2)))
+    (publish-humanpose  (tf-busy-genius-to-map) 2981384847289346)
     (dotimes (index (length create_desig))
       (setf semantic_desig
             (append semantic_desig (list (add-semantic-to-desigs
@@ -47,16 +54,26 @@
     (cond((null tmp)
           (format t "[(CRAM-REASON-DESIG) INFO] Did not work for DESIG: ~a~%" semantic_desig)
           (reset-all-services)
+          (beliefstate:stop-node id)
+          (if (string-equal *id-logger* "cram")
+              (beliefstate:extract-files :name "LOGGING-DESIGNATOR")
+              (beliefstate:extract-files :name "LOGGING-PROACTIVE-BEHAVIOR"))
           (roslisp:make-response :result "Done!"))
          (t
           (setf semantic_desig (check-resolve-designators semantic_desig))
+          (beliefstate:add-designator-to-active-node (first semantic_desig))
           (roslisp:publish *cmd-pub*
                            (roslisp:make-message "std_msgs/String" :data "checked"))
-          ;; (setf semantic_desig (check-resolve-desigs-pose semantic_desig))
+       ;;   (setf semantic_desig (check-resolve-desigs-pose semantic_desig))
+          (beliefstate:add-designator-to-active-node (first semantic_desig))
           (format t "[(CRAM-REASON-DESIG) INFO] DESIG: ~a~%" semantic_desig)
-        ;;  (setf robots-common::*logging-enabled* t)
-        ;;  (commander:human-command (first semantic_desig))
+          (setf robots-common::*logging-enabled* t)
+         ;; (commander:human-command (first semantic_desig))
           (reset-all-services)
+          (beliefstate:stop-node id)
+          (if (string-equal *id-logger* "cram")
+              (beliefstate:extract-files :name "LOGGING-DESIGNATOR")
+              (beliefstate:extract-files :name "LOGGING-PROACTIVE-BEHAVIOR"))
           (roslisp:make-response :result "Done!")))))
 
 
@@ -67,6 +84,7 @@
   (roslisp-utilities:startup-ros :name "proactive_behavior_service")
   (roslisp:register-service "service_proactivity" 'hmi_interpreter-srv:HMIDesig)
   (setf *cmd-pub* (roslisp:advertise "check_cmd_collector" "std_msgs/String"))
+  (setf *id-logger* "proactive")
   (roslisp:ros-info (basics-system) "start proactive_behavior_service")
   (roslisp:spin-until nil 1000))
 

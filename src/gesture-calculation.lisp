@@ -52,7 +52,9 @@
         (if (null elem1)
             (setf elem (list (car elem2)))
             (setf elem (list (car elem1)))))
-    (first (remove-duplicates elem))))
+    (setf val (first (remove-duplicates elem))))
+    (beliefstate:add-designator-to-active-node (make-designator :object `((:name ,val))))
+    val)
 
 (defun give-pointed-direction (pose)
   (let ((liste (calculate-ray (cl-transforms:make-pose
@@ -78,7 +80,7 @@
                                                                (cl-transforms:orientation pose)))
    (setf gest (cl-transforms-stamped:make-pose-stamped "gesture" 0.0
                                                    (cl-transforms:make-3d-vector 100 0 0)
-                                                   (cl-transforms:make-identity-rotation)))
+                                                   (cl-transforms:make-identity-rotation)))          
     (cl-transforms-stamped:pose-stamped->pose (cl-tf:transform-pose cram-tf::*transformer* :pose gest :target-frame "map"))))
 
 (defun copy-hash-table (hash-table)
@@ -165,4 +167,29 @@
              (setf poslist (append (list  (cl-transforms-stamped:pose-stamped->pose x-y)) poslist)))
     (setf poslist (reverse poslist))
     (dotimes(test (length poslist))
-      do (publish-objpose (nth test poslist) (+  test 100))) poslist)) 
+      do (go-into-genius-gesture (nth test poslist))
+      (publish-objpose (nth test poslist) (+  test 100)))
+    poslist)) 
+
+
+(defun go-into-genius-gesture (pose)
+  (roslisp:publish *gesture*  (roslisp:make-message "geometry_msgs/PoseStamped"
+                                                    :pose (roslisp:make-msg "geometry_msgs/Pose"
+                                                                            :position
+                                                                          (roslisp:make-msg "geometry_msgs/Point"
+                                                                                            :x
+                                                                                            (cl-transforms:x (cl-transforms:origin pose))
+                                                                                            :y
+                                                                                            (cl-transforms:y (cl-transforms:origin pose))
+                                                                                            :z
+                                                                                            (cl-transforms:z (cl-transforms:origin pose)))
+                                                                          :orientation
+                                                                          (roslisp:make-msg "geometry_msgs/Quaternion"
+                                                                                            :x
+                                                                                            (cl-transforms:x (cl-transforms:orientation pose))
+                                                                                            :y
+                                                                                            (cl-transforms:y (cl-transforms:orientation pose))
+                                                                                            :z
+                                                                                            (cl-transforms:z (cl-transforms:orientation pose))
+                                                                                            :w
+                                                                                            (cl-transforms:w (cl-transforms:orientation pose)))))))
