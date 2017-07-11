@@ -10,3 +10,6 @@ include_directories(
 
 add_lisp_executable(hmi-main
 hmi-cram hmi-cram::hmi-main)
+
+add_lisp_executable(proactive-main
+hmi-cram hmi-cram::proactive-main)
