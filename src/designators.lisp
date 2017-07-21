@@ -49,20 +49,16 @@
               (cond((and (= 0.0d0 (geometry_msgs-msg:x
                             (geometry_msgs-msg:position
                              (hmi_interpreter-msg:pointing_gesture jndex))))
-                       (= 0.0d0 (geometry_msgs-msg:y
-                            (geometry_msgs-msg:position
-                             (hmi_interpreter-msg:pointing_gesture jndex))))
-                       (= 0.0d0 (geometry_msgs-msg:z
-                                 (geometry_msgs-msg:position
-                                  (hmi_interpreter-msg:pointing_gesture jndex)))))
-                  ;;  (if (not (string-equal "none" obj))
-                  ;;      (setf pointed-pose (get-elem-pose obj))
-                  ;;     (setf pointed-pose (give-pointing-related-to-human)))
-                    (setf pointed-pose (give-pointing-related-to-human))
-                    (go-into-genius-gesture pointed-pose)
-                    (publish-objpose pointed-pose 19208213)
-                    )
-                    ;; (publish-pose pointed-pose :id 19208213))
+                         (= 0.0d0 (geometry_msgs-msg:y
+                                   (geometry_msgs-msg:position
+                                    (hmi_interpreter-msg:pointing_gesture jndex))))
+                         (= 0.0d0 (geometry_msgs-msg:z
+                                   (geometry_msgs-msg:position
+                                    (hmi_interpreter-msg:pointing_gesture jndex)))))
+                    (if (not (string-equal "none" obj))
+                        (setf pointed-pose (get-elem-pose obj))
+                        (setf pointed-pose (give-pointing-related-to-human)))
+                    (go-into-genius-gesture pointed-pose))
                    (t
                     (setf pose (cl-transforms:make-pose 
                                 (cl-transforms:make-3d-vector
@@ -88,15 +84,11 @@
                                  (geometry_msgs-msg:w
                                   (geometry_msgs-msg:orientation
                                    (hmi_interpreter-msg:pointing_gesture jndex))))))
-                  ;; (if (string-equal "none" obj)
-                 ;; (setf pointed-pose (give-pointed-direction pose))
-                 ;;  (setf pointed-pose (get-elem-pose obj)))
-                    (setf pointed-pose (give-pointed-direction (cl-transforms:make-identity-pose)))
-                 ;;   (publish-objpose pointed-pose :id 19823737308213)
-                   ;;    (publish-objpose pose :id 19208213))
-                   ))
-                      (setf loc_desig (make-designator :location `((:viewpoint ,viewpoint)
-                                                                   (:pose ,pointed-pose))))
+                    (if (string-equal "none" obj)
+                        (setf pointed-pose (give-pointed-direction pose))
+                     (setf pointed-pose (get-elem-pose obj)))))
+              (setf loc_desig (make-designator :location `((:viewpoint ,viewpoint)
+                                                           (:pose ,pointed-pose))))
               (if (string-equal "robot" actor)
                   (setf actor NIL))
               (setf action-list (append action-list
@@ -107,6 +99,7 @@
     action-list))
 
 (defun make-designator-with-adapted-actions (action actor operator objname loc_desig)
+  (format t "with adapted ~%")
   (let((desig NIL)(test1 NIL)(test2 NIL)(elem-name NIL))
     (cond((string-equal "scan-lake-area" action)
           (setf test1
@@ -115,18 +108,14 @@
           (if (string-equal test1 test2)
               (setf elem-name test1)
               (setf elem-name test2))
-	  (if (roslisp:wait-for-service "store_reasoning_output" 10)
-	      (setf ro (roslisp:call-service "store_reasoning_output" 'hmi_interpreter-srv:text_parser :goal elem-name)))
-       ;;   (beliefstate:add-designator-to-active-node (make-designator :object `((:name ,elem-name))))
+          (call-service-logging elem-name (get-elem-type elem-name) "next")
           (setf desig (list (make-designator :action `((:to ,(set-keyword "scan"))
                                                        (:actor ,actor)
                                                        (:operator ,(set-keyword operator))
                                                        (:area ,elem-name))))))
          ((or (string-equal "scan-lake" action)
               (string-equal "scan-area" action))
-	  (if (roslisp:wait-for-service "store_reasoning_output" 10)
-	      (setf ro (roslisp:call-service "store_reasoning_output" 'hmi_interpreter-srv:text_parser :goal objname)))
-        ;;  (beliefstate:add-designator-to-active-node (make-designator :object `((:name ,objname))))
+          (call-service-logging objname (get-elem-type objname) "next")
           (setf desig (list (make-designator :action `((:to ,(set-keyword "scan"))
                                                        (:actor ,actor)
                                                        (:operator ,(set-keyword operator))
@@ -157,9 +146,7 @@
           (cond((or (search "donkey" objname)
                     (search "wasp" objname)
                     (search "hawk" objname))
-		(if (roslisp:wait-for-service "store_reasoning_output" 10)
-		    (setf ro (roslisp:call-service "store_reasoning_output" 'hmi_interpreter-srv:text_parser :goal objname)))
-            ;;    (beliefstate:add-designator-to-active-node (make-designator :object `((:name ,objname))))
+                (call-service-logging objname (get-elem-type objname) "next")
                 (setf desig (list (make-designator :action `((:to ,(set-keyword "land"))
                                                              (:actor ,actor)
                                                              (:operator ,(set-keyword operator))
@@ -178,28 +165,22 @@
           ((string-equal "search" action)
            (if (get-elem-pose objname)
                (publish-elempose (get-elem-pose objname) 9876545678923))
-	   (if (roslisp:wait-for-service "store_reasoning_output" 10)
-	       (setf ro (roslisp:call-service "store_reasoning_output" 'hmi_interpreter-srv:text_parser :goal objname)))
-        ;;   (beliefstate:add-designator-to-active-node (make-designator :object `((:name ,objname))))
+           (call-service-logging objname (get-elem-type objname) "next")
            (setf desig (list (make-designator :action `((:to ,(set-keyword "search"))
                                                         (:actor ,actor)
                                                         (:operator ,(set-keyword operator))
                                                         (:object ,(set-keyword (second (second (desig:properties loc_desig)))))
                                                         (:area ,objname))))))
           ((string-equal "look-for" action)
-	   (if (roslisp:wait-for-service "store_reasoning_output" 10)
-	       (setf ro (roslisp:call-service "store_reasoning_output" 'hmi_interpreter-srv:text_parser :goal objname)))
-         ;;  (beliefstate:add-designator-to-active-node (make-designator :object `((:name ,objname))))
-          (setf desig (list (make-designator :action `((:to ,(set-keyword "look-for"))
+           (call-service-logging objname (get-elem-type objname) "next")
+           (setf desig (list (make-designator :action `((:to ,(set-keyword "look-for"))
                                                        (:actor ,actor)
                                                        (:operator ,(set-keyword operator))
                                                        (:object ,(set-keyword objname)))))))
         
           ((string-equal "search-for" action)
-	   (if (roslisp:wait-for-service "store_reasoning_output" 10)
-	       (setf ro (roslisp:call-service "store_reasoning_output" 'hmi_interpreter-srv:text_parser :goal objname)))
-          ;; (beliefstate:add-designator-to-active-node (make-designator :object `((:name ,objname))))
-          (setf desig (list (make-designator :action `((:to ,(set-keyword "search-for"))
+           (call-service-logging objname (get-elem-type objname) "next")
+           (setf desig (list (make-designator :action `((:to ,(set-keyword "search-for"))
                                                        (:actor ,actor)
                                                        (:operator ,(set-keyword operator))
                                                        (:object ,(set-keyword objname)))))))
@@ -281,6 +262,7 @@
     act-list)) 
 
 (defun various-commands-function (index)
+  (format t "print-various-command~%")
   (let ((action-list '())
         (property-list '())
         (loc_desig NIL)
@@ -301,9 +283,9 @@
                                                   'hmi_interpreter-srv:text_parser :goal "get")
                             'hmi_interpreter-srv:result))
         ;;  (beliefstate:add-designator-to-active-node (make-designator :object `((:name ,oe-object))))
-      (if (roslisp:wait-for-service "store_reasoning_output" 10)
-	  (setf ro (roslisp:call-service "store_reasoning_output" 'hmi_interpreter-srv:text_parser :goal oe-object)))
-))
+           (if (not (string-equal "none" oe-object)) 
+                    (call-service-logging oe-object (get-elem-type oe-object) "final"))))
+    (format t "teeest~%")
     (loop for jndex being the elements of propkeys
           do(let((pose NIL)
                  (spatial
@@ -361,6 +343,7 @@
                    (t (setf obj NIL)))
               (if (null obj)
                   (setf obj object))
+                 (format t "tee3232xsccest~%")
               (cond((string-equal spatial "to")
                     (cond((or (search "ridge" object)
                               (search "elipad" object))
@@ -384,9 +367,11 @@
                     (setf spatial "tmp")))
               (setf property-list (append property-list (list (list (set-keyword spatial) obj))))))
     (setf property-list (append (list (list :viewpoint viewpoint)) property-list))
+        (format t "dsfsdfhdjahd~%")
     (setf loc_desig (make-designator :location property-list))
     (if (string-equal "robot" actor)
         (setf actor NIL))
+    (format t "hdjahd~%")
     (setf action-list (append action-list (make-designator-with-adapted-actions action
                                                                                 actor
                                                                                 operator
@@ -406,6 +391,7 @@
 
 
 (defun add-semantic-to-desigs (desig)
+  (format t "DESIGS ~a~%" desig)
   (let((actor NIL)
        (posy NIL)(test1 NIL)(test2 NIL)
        (pose NIL))
@@ -473,7 +459,6 @@
                                                           (list (list (first (first (last proplist)))
                                                                       felem))))
                                 )))))
-
                   ((= 2 (length proplist))
                    (setf tmpproplist (add-semantics-two-desigs proplist (desig-prop-value (desig-prop-value desig :destination) :viewpoint)))))
             (setf tmpproplist (append tmpproplist (list (list :viewpoint (desig-prop-value (desig-prop-value desig :destination) :viewpoint)))))
@@ -582,3 +567,7 @@
             (t
              (setf liste (append liste (list (nth index desigs)))))))
     liste)) 
+
+(defun call-service-logging (name type position)
+  (if (roslisp:wait-for-service "store_reasoning_output" 10)
+       (roslisp:call-service "store_reasoning_output" 'hmi_interpreter-srv:reasoning_algo :data name :selected type :position position)))

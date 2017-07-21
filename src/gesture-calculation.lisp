@@ -29,6 +29,8 @@
 (in-package :hmi-cram)
 
 (defun get-pointed-elem-by-voice-type (pose type &optional (viewpoint "busy_genius"))
+  (format t "get-pointed-elem-by-voicde~%")
+  (setf val NIL)
   (if(and (= 0.0d0 (cl-transforms:x (cl-transforms:origin pose)))
           (= 0.0d0 (cl-transforms:y (cl-transforms:origin pose)))
           (= 0.0d0 (cl-transforms:z (cl-transforms:origin pose))))
@@ -53,7 +55,8 @@
             (setf elem (list (car elem2)))
             (setf elem (list (car elem1)))))
     (setf val (first (remove-duplicates elem))))
-    (beliefstate:add-designator-to-active-node (make-designator :object `((:name ,val))))
+   ;; (beliefstate:add-designator-to-active-node (make-designator :object `((:name ,val))))
+  (call-service-logging val (get-elem-type val) "next")
     val)
 
 (defun give-pointed-direction (pose)

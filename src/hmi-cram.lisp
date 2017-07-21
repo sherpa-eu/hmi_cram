@@ -43,21 +43,22 @@
   (let ((create_desig (create-desig-based-on-hmi-call desigs))
         (semantic_desig '())(tmp NIL)(id NIL))
     (if (string-equal *id-logger* "cram")
-        (setf id  (beliefstate:start-node "LOGGING-DESIGNATOR" NIL 2))
-        (setf id  (beliefstate:start-node "LOGGING-PROACTIVE-BEHAVIOR" NIL 2)))
+        (setf id  (beliefstate:start-node "logging-designator" NIL 2))
+        (setf id  (beliefstate:start-node "logging-proactive-behavior" NIL 2)))
     (publish-humanpose  (tf-busy-genius-to-map) 2981384847289346)
     (dotimes (index (length create_desig))
       (setf semantic_desig
             (append semantic_desig (list (add-semantic-to-desigs
                                           (nth index create_desig))))))
+    (format t "end ~%")
     (setf tmp (check-all-designators semantic_desig))
     (cond((null tmp)
           (format t "[(CRAM-REASON-DESIG) INFO] Did not work for DESIG: ~a~%" semantic_desig)
           (reset-all-services)
           (beliefstate:stop-node id)
           (if (string-equal *id-logger* "cram")
-              (beliefstate:extract-files :name "LOGGING-DESIGNATOR")
-              (beliefstate:extract-files :name "LOGGING-PROACTIVE-BEHAVIOR"))
+              (beliefstate:extract-files :name "logging-designator")
+              (beliefstate:extract-files :name "logging-proactive-behavior"))
           (roslisp:make-response :result "Done!"))
          (t
           (setf semantic_desig (check-resolve-designators semantic_desig))
@@ -67,13 +68,13 @@
        ;;   (setf semantic_desig (check-resolve-desigs-pose semantic_desig))
           (beliefstate:add-designator-to-active-node (first semantic_desig))
           (format t "[(CRAM-REASON-DESIG) INFO] DESIG: ~a~%" semantic_desig)
-          (setf robots-common::*logging-enabled* t)
+         ;; (setf robots-common::*logging-enabled* t)
          ;; (commander:human-command (first semantic_desig))
           (reset-all-services)
           (beliefstate:stop-node id)
           (if (string-equal *id-logger* "cram")
-              (beliefstate:extract-files :name "LOGGING-DESIGNATOR")
-              (beliefstate:extract-files :name "LOGGING-PROACTIVE-BEHAVIOR"))
+              (beliefstate:extract-files :name "logging-designator")
+              (beliefstate:extract-files :name "logging-proactive-behavior"))
           (roslisp:make-response :result "Done!")))))
 
 
@@ -89,3 +90,11 @@
   (roslisp:spin-until nil 1000))
 
 
+;; (defun openease-main()
+;;   (openease-main-call))
+
+;; (defun openease-main-call ()
+;;   (roslisp-utilities:startup-ros :name "openease_transform_service")
+;;   (roslisp:register-service "openease_cram_transform" 'hmi_interpreter-srv:StringArray)
+;;   (roslisp:ros-info (basic-system) "start openease_transform_service")
+;;   (roslisp:spin-until nil 1000))
