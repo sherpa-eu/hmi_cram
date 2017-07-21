@@ -56,7 +56,7 @@
             (setf elem (list (car elem1)))))
     (setf val (first (remove-duplicates elem))))
    ;; (beliefstate:add-designator-to-active-node (make-designator :object `((:name ,val))))
-  (call-service-logging val (get-elem-type val) "next")
+  (call-service-logging val (get-elem-type val) "final" viewpoint)
     val)
 
 (defun give-pointed-direction (pose)
