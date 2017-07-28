@@ -29,7 +29,6 @@
 (in-package :hmi-cram)
 
 (defun get-pointed-elem-by-voice-type (pose type &optional (viewpoint "busy_genius"))
-  (format t "get-pointed-elem-by-voicde~%")
   (setf val NIL)
   (if(and (= 0.0d0 (cl-transforms:x (cl-transforms:origin pose)))
           (= 0.0d0 (cl-transforms:y (cl-transforms:origin pose)))
@@ -46,7 +45,8 @@
                (cond ((equal T (check-distance (cl-transforms:origin (get-elem-pose (nth in elem1)))
                                                (cl-transforms:origin (nth index poses-liste))))
                       (setf elem (append elem (list (nth in elem1))))))))
-            (t (dotimes (in (length elem2))
+            (t 
+             (dotimes (in (length elem2))
                  (cond ((equal T (check-distance (cl-transforms:origin (get-elem-pose (nth in elem2)))
                                                  (cl-transforms:origin (nth index poses-liste))))
                         (setf elem (append elem (list (nth in elem2))))))))))
@@ -68,6 +68,8 @@
                                                              (cl-transforms:z
                                                               (cl-transforms:origin pose)))
                                (cl-transforms:orientation pose)))))
+    (dotimes (index (length liste))
+       (call-gesture-logging "pointing" (nth index liste)))
     (car (last liste))))
 
 (defun square (n)
@@ -82,9 +84,23 @@
                                                                (cl-transforms:origin pose)
                                                                (cl-transforms:orientation pose)))
    (setf gest (cl-transforms-stamped:make-pose-stamped "gesture" 0.0
-                                                   (cl-transforms:make-3d-vector 100 0 0)
-                                                   (cl-transforms:make-identity-rotation)))          
+                                                   (cl-transforms:make-3d-vector 200 0 0)
+                                                   (cl-transforms:make-identity-rotation)))     
     (cl-transforms-stamped:pose-stamped->pose (cl-tf:transform-pose cram-tf::*transformer* :pose gest :target-frame "map"))))
+
+(defun give-pointing-direction()
+  (let((pose (tf-busy-genius-to-map))
+       (gest NIL))
+   (cl-tf:set-transform cram-tf::*transformer* (cl-transforms-stamped:make-transform-stamped
+                                                               "map" "gesture"
+                                                               (roslisp:ros-time)
+                                                               (cl-transforms:origin pose)
+                                                               (cl-transforms:orientation pose)))
+   (setf gest (cl-transforms-stamped:make-pose-stamped "gesture" 0.0
+                                                   (cl-transforms:make-3d-vector 1 0 0)
+                                                   (cl-transforms:make-identity-rotation)))     
+    (cl-transforms-stamped:pose-stamped->pose (cl-tf:transform-pose cram-tf::*transformer* :pose gest :target-frame "map"))))
+
 
 (defun copy-hash-table (hash-table)
   (let ((ht (make-hash-table
@@ -108,8 +124,9 @@
        (posexy NIL)(posex-y NIL)(xyz NIL)(x-yz NIL)(xy-z NIL)
        (x-y-z NIL)(x NIL)(xz NIL)(x-z NIL)(xy NIL)(x-y NIL))
     (publish-pose pose :id 1100)
-    (loop for index from 3 to 1000
-          do (cl-tf:set-transform cram-tf::*transformer*  (cl-transforms-stamped:make-transform-stamped
+    (loop for index from 3 to 500
+          do 
+(cl-tf:set-transform cram-tf::*transformer*  (cl-transforms-stamped:make-transform-stamped
                                                                         "map" "gesture"
                                                                         (roslisp:ros-time)
                                                                         (cl-transforms:origin pose)
@@ -196,3 +213,32 @@
                                                                                             (cl-transforms:z (cl-transforms:orientation pose))
                                                                                             :w
                                                                                             (cl-transforms:w (cl-transforms:orientation pose)))))))
+
+
+(defun call-gesture-logging (name pose)
+  (format t "call gesture logging name ~a pose ~a~%" name pose)
+  (let((action (roslisp:make-message "std_msgs/String"
+                                     :data name))
+       (gesture (roslisp:make-message "geometry_msgs/PoseStamped"
+                        :pose (roslisp:make-msg "geometry_msgs/Pose"
+                                                :position
+                                                (roslisp:make-msg "geometry_msgs/Point"
+                                                                  :x
+                                                                  (cl-transforms:x (cl-transforms:origin pose))
+                                                                  :y
+                                                                  (cl-transforms:y (cl-transforms:origin pose))
+                                                                  :z
+                                                                  (cl-transforms:z (cl-transforms:origin pose)))
+                                                :orientation
+                                                (roslisp:make-msg "geometry_msgs/Quaternion"
+                                                                  :x
+                                                                  (cl-transforms:x (cl-transforms:orientation pose))
+                                                                  :y
+                                                                  (cl-transforms:y (cl-transforms:orientation pose))
+                                                                  :z
+                                                                  (cl-transforms:z (cl-transforms:orientation pose))
+                                                                  :w
+                                                                  (cl-transforms:w (cl-transforms:orientation pose)))))))
+    (if (roslisp:wait-for-service "logging_gesture" 10)
+        (roslisp:call-service "logging_gesture" 'hmi_interpreter-srv:pointer :action action  :pointing gesture))))
+  

@@ -44,13 +44,14 @@
         (semantic_desig '())(tmp NIL)(id NIL))
     (if (string-equal *id-logger* "cram")
         (setf id  (beliefstate:start-node "logging-designator" NIL 2))
-        (setf id  (beliefstate:start-node "logging-proactive-behavior" NIL 2)))
+        (setf id  (beliefstate:start-node "logging-proactive-designator" NIL 2)))
     (publish-humanpose  (tf-busy-genius-to-map) 2981384847289346)
     (dotimes (index (length create_desig))
+      (beliefstate:add-designator-to-active-node (nth index create_desig))
       (setf semantic_desig
             (append semantic_desig (list (add-semantic-to-desigs
                                           (nth index create_desig))))))
-    (format t "end ~%")
+
     (setf tmp (check-all-designators semantic_desig))
     (cond((null tmp)
           (format t "[(CRAM-REASON-DESIG) INFO] Did not work for DESIG: ~a~%" semantic_desig)
@@ -58,7 +59,7 @@
           (beliefstate:stop-node id)
           (if (string-equal *id-logger* "cram")
               (beliefstate:extract-files :name "logging-designator")
-              (beliefstate:extract-files :name "logging-proactive-behavior"))
+              (beliefstate:extract-files :name "logging-proactive-designator"))
           (roslisp:make-response :result "Done!"))
          (t
           (setf semantic_desig (check-resolve-designators semantic_desig))
@@ -74,7 +75,7 @@
           (beliefstate:stop-node id)
           (if (string-equal *id-logger* "cram")
               (beliefstate:extract-files :name "logging-designator")
-              (beliefstate:extract-files :name "logging-proactive-behavior"))
+              (beliefstate:extract-files :name "logging-proactive-designator"))
           (roslisp:make-response :result "Done!")))))
 
 

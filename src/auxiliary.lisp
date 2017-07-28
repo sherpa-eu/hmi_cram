@@ -196,8 +196,9 @@
                         (split-sequence:split-sequence #\# 
                                                        (remove #\' (symbol-name (cdar  (nth index liste))))))))
               (cond((not (find obj tmpact :test #'equal))
+                    (format t "obj ~a~%" obj)
                     (setf tmpact (append tmpact (list obj)))
-                    (call-service-logging obj type "infront" viewpoint)))
+                    (call-service-logging obj type "next" viewpoint)))
               (if(and (check-elems-infront-agent obj viewpoint)
                       (not (find obj actlist :test #'equal))) 
                  (setf actlist (append actlist (list
@@ -657,7 +658,7 @@
                                              (b color) 0.0 ; (random 1.0)
                                              (a color) 1.0)))))
 
-(defun publish-pose-color (pose vec)
+(defun publish-pose-color (pose)
   (setf *marker-publisher*
         (roslisp:advertise "~location_marker" "visualization_msgs/Marker"))
   (let ((point (cl-transforms:origin pose))
@@ -836,7 +837,6 @@
                          (assoc :front prop)
                          (assoc :ontop prop)
                          (assoc :behind prop))
-                     (format t "inside checketr ~%")
                      (cond ((not (null (desig-prop-value loc :next-to)))
                             (call-service-logging (desig-prop-value loc :next-to)
                                                   (get-elem-type (desig-prop-value loc :next-to)) "final" "")
