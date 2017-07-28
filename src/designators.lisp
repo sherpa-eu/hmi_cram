@@ -87,9 +87,13 @@
                                  (geometry_msgs-msg:w
                                   (geometry_msgs-msg:orientation
                                    (hmi_interpreter-msg:pointing_gesture jndex))))))
-                    (if (string-equal "none" obj)
+                    (cond((string-equal "none" obj)
                         (setf pointed-pose (give-pointed-direction pose))
-                     (setf pointed-pose (get-elem-pose obj)))))
+                          )
+                     (t (setf pointed-pose (get-elem-pose obj))
+                        (call-gesture-logging obj (cl-transforms:make-identity-pose))
+                        ))
+                    ))
               (setf loc_desig (make-designator :location `((:viewpoint ,viewpoint)
                                                            (:pose ,pointed-pose))))
               (if (string-equal "robot" actor)
