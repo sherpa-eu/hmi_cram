@@ -366,6 +366,8 @@
                     (cond ((or (search "elipad" object)
                                (search "ridge" object))
                            (setf spatial "ontop"))))
+                   ((string-equal spatial "on")
+                    (setf spatial "ontop"))
                    ((or (null spatial)
                         (string-equal "null" spatial))
                     (setf spatial "tmp")))
